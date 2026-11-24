@@ -1,0 +1,6 @@
+{
+  "name": "BLACKWOOD — 1-Bit Horror FPS",
+  "description": "Jogo mobile em primeira pessoa de terror no estilo 1-bit dithering com iluminação dinâmica reativa e áudio espacializado 3D.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

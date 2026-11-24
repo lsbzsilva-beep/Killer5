@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>BLACKWOOD — 1-Bit Horror FPS</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font-family:monospace;touch-action:none}
+#view{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#hud{position:absolute;inset:0;pointer-events:none;text-shadow:2px 2px #000}
+#stats{position:absolute;top:12px;left:13px;font-size:clamp(14px,3.5vw,20px);line-height:1.45;font-weight:bold}
+#objective{position:absolute;top:76px;left:13px;max-width:72%;font-size:11px;line-height:1.4}
+#cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:22px}
+#tip{position:absolute;bottom:10px;left:50%;width:100%;text-align:center;font-size:10px;opacity:.75}
+#mobile{display:none;position:absolute;inset:0;pointer-events:none}
+.pad{position:absolute;left:16px;bottom:22px;width:126px;height:126px;pointer-events:auto}
+.actions{position:absolute;right:17px;bottom:24px;width:128px;height:112px;pointer-events:auto}
+#mobile button{position:absolute;background:#080808b8;border:1px solid #aaa;color:#fff;font:bold 17px monospace;width:40px;height:40px;border-radius:7px;padding:0;touch-action:none}
+#up{left:43px;top:0}#down{left:43px;bottom:0}#left{left:0;top:43px}#right{right:0;top:43px}
+#fire{right:0;bottom:0;width:61px!important;height:61px!important;border-radius:50%!important;font-size:11px!important}
+#run{left:0;bottom:8px;border-radius:50%!important;font-size:10px!important}
+#cover{position:absolute;inset:0;display:grid;place-items:center;background:#000e;padding:20px;z-index:4;text-align:center}
+.panel{width:min(440px,100%);border:1px solid #aaa;background:#050505;padding:25px 20px;box-shadow:0 0 0 5px #111}
+h1{font-size:clamp(27px,8vw,43px);letter-spacing:5px;margin:0 0 5px}
+.panel p{font-size:12px;line-height:1.6;color:#ccc}
+#go{background:#fff;color:#000;border:0;padding:13px 20px;font:bold 13px monospace}
+@media(pointer:coarse){#mobile{display:block}#tip{bottom:158px}}
+</style></head>
+<body>
+<canvas id="view"></canvas>
+<div id="hud"><div id="stats">♥ <span id="hp">100</span><br>▣ <span id="ammo">12 / 48</span></div><div id="objective">◆ OBJETIVO: encontre a saída do sanatório</div><div id="cross">+</div><div id="tip">WASD mover · mouse olhar · clique atirar · SHIFT correr</div></div>
+<div id="mobile"><div class="pad"><button id="up">▲</button><button id="down">▼</button><button id="left">◀</button><button id="right">▶</button></div><div class="actions"><button id="run">RUN</button><button id="fire">FIRE</button></div></div>
+<div id="cover"><div class="panel"><h1>BLACKWOOD</h1><div>— 1-BIT DITHER HORROR —</div><p>Um protótipo em primeira pessoa.<br>Explore o sanatório, encontre a criatura e sobreviva.</p><p>PC: WASD + mouse + clique<br>Android: setas para andar · arraste para olhar · FIRE</p><button id="go">ENTRAR NO SANATÓRIO</button></div></div>
+<script>
+(()=>{
+const cv=document.querySelector('#view'),c=cv.getContext('2d',{alpha:false});
+let W=240,H=420,img,px;
+function resize(){const a=innerWidth/innerHeight;H=Math.min(560,Math.max(300,Math.round(innerHeight/2)));W=Math.max(150,Math.min(520,Math.round(H*a)));cv.width=W;cv.height=H;img=c.createImageData(W,H);px=img.data}
+addEventListener('resize',resize);resize();
+const map=["1111111111111111","1000000000000001","1011100111011101","1000100000010001","1100101110010011","1000001000000001","1011001001110101","1000000000000001","1110111011101101","1000000000000001","1011101110111001","1000000000000001","1111111111111111"];
+const MW=16,MH=13;let p={x:1.6,y:1.7,a:.08,hp:100,ammo:12},mob={x:10.5,y:7.4,alive:true};
+let keys={},touch={f:0,s:0},started=false,shot=0,flash=0,last=0,walk=0;
+const B=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+function put(x,y,v){if(x<0||y<0||x>=W||y>=H)return;let i=(y*W+x)*4;let on=v>(B[y&3][x&3]*16+8)?255:0;px[i]=px[i+1]=px[i+2]=on;px[i+3]=255}
+function wall(x,y){let X=Math.floor(x),Y=Math.floor(y);return X<0||Y<0||X>=MW||Y>=MH||map[Y][X]==='1'}
+function move(dx,dy){if(!wall(p.x+dx,p.y))p.x+=dx;if(!wall(p.x,p.y+dy))p.y+=dy}
+function ray(a){let cs=Math.cos(a),sn=Math.sin(a);for(let d=.025;d<20;d+=.025){let x=p.x+cs*d,y=p.y+sn*d;if(wall(x,y)){let fx=x-Math.floor(x),fy=y-Math.floor(y);return {d,side:Math.min(fx,1-fx)<Math.min(fy,1-fy)?0:1,u:Math.min(fx,1-fx)<Math.min(fy,1-fy)?fy:fx}}}return {d:20,side:0,u:0}}
+function dot(x,y,v){put(Math.floor(x),Math.floor(y),v)}
+function billboard(wx,wy,kind){
+ let dx=wx-p.x,dy=wy-p.y,dist=Math.hypot(dx,dy),ang=Math.atan2(dy,dx)-p.a;
+ while(ang>Math.PI)ang-=Math.PI*2;while(ang<-Math.PI)ang+=Math.PI*2;
+ if(Math.abs(ang)>.82||dist<.2)return;
+ let sx=W/2+Math.tan(ang)*W*.91,scale=H/(dist*1.05),cy=H*.5;
+ if(kind==='lamp'){
+  let r=Math.max(2,scale*.055);for(let y=cy-scale*.45;y<cy-scale*.36;y++)for(let x=sx-r;x<sx+r;x++)dot(x,y,220);
+  for(let y=cy-scale*.36;y<cy-scale*.22;y++)for(let x=sx-1;x<sx+2;x++)dot(x,y,120);
+  for(let y=cy-scale*.2;y<cy+scale*.35;y++)for(let x=sx-scale*.13;x<sx+scale*.13;x++)if(Math.sin(y*.3+x*.2)>-.25)dot(x,y,35);
+ }else if(kind==='chair'){
+  let w=scale*.22,h=scale*.28;
+  for(let y=cy+h*.1;y<cy+h*.35;y++)for(let x=sx-w/2;x<sx+w/2;x++)if(x<sx-w*.35||x>sx+w*.35||y<cy+h*.16)dot(x,y,180);
+  for(let y=cy+h*.35;y<cy+h*.8;y++)for(let x of [sx-w*.38,sx+w*.34])dot(x,y,180);
+  for(let x=sx-w*.5;x<sx+w*.5;x++)dot(x,cy+h*.1,220);
+ }else if(kind==='enemy'&&mob.alive){
+  let h=scale*.72,w=h*.38,top=cy-h*.48;
+  for(let y=top;y<cy+h*.48;y++)for(let x=sx-w/2;x<sx+w/2;x++){
+   let yy=(y-top)/h,xx=(x-sx)/w;
+   let inside=(yy<.22?xx*xx<.12:(yy<.66?Math.abs(xx)<.48:Math.abs(xx)<.24));
+   if(inside){let edge=Math.abs(xx)>.37||yy<.08;dot(x,y,edge?245:105)}
+  }
+  for(let ex of [-.12,.12])for(let y=top+h*.12;y<top+h*.15;y++)for(let x=sx+ex*w-1;x<sx+ex*w+2;x++)dot(x,y,0);
+  for(let y=top+h*.3;y<top+h*.34;y++)for(let x=sx-w*.15;x<sx+w*.15;x++)dot(x,y,0);
+ }
+}
+function render(){
+ // Clear, then draw ceiling/floor with ordered dithering and perspective floor seams
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+  let v=y<H*.48?18+22*y/(H*.48):25+75*(y-H*.48)/(H*.52);
+  if(y>H*.5){let z=(y-H*.5)/(H*.5);let gx=(x-W/2)/(z*1.8);if(Math.abs(gx-Math.round(gx))<.045)v+=35;if((y%Math.max(5,Math.floor(9*z)))===0)v-=22}
+  put(x,y,Math.max(0,Math.min(255,v)));
+ }
+ // Raycast walls with masonry, cracks, lower tiled dado and deep shadowing
+ for(let x=0;x<W;x++){
+  let a=p.a+(x/W-.5)*1.18,r=ray(a),d=r.d*Math.cos(a-p.a),wh=Math.min(H*2,H/(d*.78)),top=(H-wh)/2,base=205/(1+d*.32);
+  for(let y=Math.max(0,Math.floor(top));y<Math.min(H,Math.ceil(top+wh));y++){
+   let rel=(y-top)/wh,tex=0;
+   let row=Math.floor(rel*12),col=Math.floor(r.u*10);
+   if(row%2===0&&r.u*10%1<.055)tex-=60;
+   if(rel>.62){if(row%2===0)tex-=48;if(col%2===0)tex-=24;}
+   if((x*13+y*7)%97<2)tex-=55;
+   if(Math.abs((r.u*10)%1-.5)<.018)tex-=24;
+   let v=base+tex-(r.side?28:0);
+   if(rel<.12) v-=22; // ceiling edge
+   dot(x,y,Math.max(0,v));
+  }
+ }
+ // distant door frames, wall lamps, furniture and creature
+ [[4.5,1.5,'lamp'],[8.5,1.5,'lamp'],[12.5,1.5,'lamp'],[4.5,5.5,'chair'],[10.5,7.4,'enemy']].forEach(v=>billboard(...v));
+ // close foreground pistol with engraved slide / hand silhouette
+ let bx=W*.72,by=H*.78,sc=Math.min(W,H)/240;
+ for(let y=by;y<H;y++)for(let x=bx-18*sc;x<bx+35*sc;x++){
+  let xx=(x-bx)/sc,yy=(y-by)/sc;
+  if((yy<18&&yy>0&&xx>-13&&xx<25)||(yy>=18&&yy<55&&xx>-5&&xx<16)||(yy>30&&yy<66&&xx>-18&&xx<20))dot(x,y,yy<18?210:100);
+  if(yy>4&&yy<9&&xx>-10&&xx<22)dot(x,y,0);
+ }
+ for(let x=W/2-5;x<W/2+6;x++)dot(x,H/2,255);for(let y=H/2-5;y<H/2+6;y++)dot(W/2,y,255);
+ if(flash>0)for(let y=by-22*sc;y<by-5*sc;y++)for(let x=bx-8*sc;x<bx+12*sc;x++)dot(x,y,255);
+ c.putImageData(img,0,0);
+}
+function shoot(){if(!started||p.ammo<=0||shot>0)return;p.ammo--;shot=.22;flash=.08;document.querySelector('#ammo').textContent=p.ammo+' / 48';
+ if(mob.alive){let dx=mob.x-p.x,dy=mob.y-p.y,d=Math.hypot(dx,dy),a=Math.atan2(dy,dx)-p.a;while(a>Math.PI)a-=6.283;while(a<-Math.PI)a+=6.283;if(Math.abs(a)<.12&&d<9)mob.alive=false}
+}
+function update(dt){let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)+touch.f,s=(keys.KeyD?1:0)-(keys.KeyA?1:0)+touch.s;
+ let speed=(keys.ShiftLeft?2.8:1.8)*dt;if(f||s){let l=Math.hypot(f,s);f/=l;s/=l;move((Math.cos(p.a)*f-Math.sin(p.a)*s)*speed,(Math.sin(p.a)*f+Math.cos(p.a)*s)*speed);walk+=dt*8}
+ if(keys.ArrowLeft)p.a-=dt*1.7;if(keys.ArrowRight)p.a+=dt*1.7;
+ if(mob.alive){let dx=p.x-mob.x,dy=p.y-mob.y,d=Math.hypot(dx,dy);if(d<5){let a=Math.atan2(dy,dx),nx=mob.x+Math.cos(a)*dt*.28,ny=mob.y+Math.sin(a)*dt*.28;if(!wall(nx,mob.y))mob.x=nx;if(!wall(mob.x,ny))mob.y=ny;if(d<.7){p.hp=Math.max(0,p.hp-dt*10);document.querySelector('#hp').textContent=Math.ceil(p.hp)}}}
+ shot=Math.max(0,shot-dt);flash=Math.max(0,flash-dt);
+ if(p.x>13.2&&p.y>10.2)document.querySelector('#objective').textContent='◆ VOCÊ ESCAPOU — FIM DA DEMO';
+}
+function loop(t){let dt=Math.min(.04,(t-last)/1000||0);last=t;if(started){update(dt);render()}requestAnimationFrame(loop)}requestAnimationFrame(loop);
+document.querySelector('#go').onclick=()=>{started=true;document.querySelector('#cover').style.display='none';cv.requestPointerLock?.()};
+addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='Space')shoot();if(e.code==='KeyR'){p.ammo=12;document.querySelector('#ammo').textContent='12 / 48'}});
+addEventListener('keyup',e=>keys[e.code]=false);cv.addEventListener('click',()=>{if(started)shoot()});
+addEventListener('mousemove',e=>{if(document.pointerLockElement===cv)p.a+=e.movementX*.0025});
+let drag=false,lx=0;cv.addEventListener('touchstart',e=>{if(e.touches[0].clientX>innerWidth*.32){drag=true;lx=e.touches[0].clientX}},{passive:false});
+cv.addEventListener('touchmove',e=>{if(drag){p.a+=(e.touches[0].clientX-lx)*.007;lx=e.touches[0].clientX}},{passive:false});cv.addEventListener('touchend',()=>drag=false);
+function hold(id,fn){let b=document.getElementById(id);b.addEventListener('touchstart',e=>{e.preventDefault();fn(true)},{passive:false});b.addEventListener('touchend',e=>{e.preventDefault();fn(false)},{passive:false});b.addEventListener('mousedown',()=>fn(true));b.addEventListener('mouseup',()=>fn(false));b.addEventListener('mouseleave',()=>fn(false))}
+hold('up',v=>touch.f=v?1:0);hold('down',v=>touch.f=v?-1:0);hold('left',v=>touch.s=v?-1:0);hold('right',v=>touch.s=v?1:0);hold('fire',v=>{if(v)shoot()});hold('run',v=>keys.ShiftLeft=v);
+})();
+</script></body></html>
