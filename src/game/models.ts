@@ -1,13 +1,8 @@
 import * as THREE from 'three';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { SanatoriumTextures } from './textures';
 import { applySoftwareBayerDither } from './DitherPostProcess';
-import { WALL_HEIGHT } from './mapData';
-import bodySpriteUrl from '../assets/images/ceiling_thing_body_v2_1795552263612.jpg';
-import bodyBackSpriteUrl from '../assets/images/ceiling_thing_body_back_v2_1795552265230.jpg';
-import headSpriteUrl from '../assets/images/ceiling_thing_head_v2_1795552265072.jpg';
-import headBackSpriteUrl from '../assets/images/ceiling_thing_head_back_v2_1795552265860.jpg';
-import armSpriteUrl from '../assets/images/ceiling_thing_arm_v2_1795552265462.jpg';
-import legSpriteUrl from '../assets/images/ceiling_thing_leg_v2_1795552267003.jpg';
+import { CELL_SIZE, WALL_HEIGHT } from './mapData';
 
 function makeStd(
   params: THREE.MeshStandardMaterialParameters,
@@ -201,7 +196,7 @@ export function createAsylumChair(
 }
 
 /**
- * 3. Composite 8-part Iron Hospital Gurney (bottom-center pivot at y=0)
+ * 3. Composite Industrial Steel Dive / Ballast Table (bottom-center pivot at y=0)
  */
 export function createGurney(
   textures: SanatoriumTextures,
@@ -212,40 +207,50 @@ export function createGurney(
     {
       map: textures.metalMap,
       roughnessMap: textures.metalRoughness,
-      color: 0x70757c,
+      color: 0x68727c,
       roughness: 0.45,
       metalness: 0.88,
     },
     isSoftwareGl,
   );
-  const mattressMat = makeStd(
+  const tankMat = makeStd(
+    {
+      map: textures.metalMap,
+      color: 0xd4a438,
+      roughness: 0.48,
+      metalness: 0.65,
+    },
+    isSoftwareGl,
+  );
+  const tarpMat = makeStd(
     {
       map: textures.fabricMap,
-      color: 0xc2beb4,
-      roughness: 0.94,
-      metalness: 0.0,
+      color: 0x3b4852,
+      roughness: 0.9,
+      metalness: 0.05,
     },
     isSoftwareGl,
   );
 
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.07, 1.88), steelMat);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.08, 1.86), steelMat);
   deck.position.y = 0.72;
   deck.castShadow = true;
   deck.receiveShadow = true;
   group.add(deck);
 
-  const mattress = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.14, 1.8), mattressMat);
-  mattress.position.y = 0.82;
-  mattress.castShadow = true;
-  mattress.receiveShadow = true;
-  group.add(mattress);
+  const tarp = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.05, 1.65), tarpMat);
+  tarp.position.y = 0.785;
+  tarp.castShadow = true;
+  group.add(tarp);
 
-  const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.08, 0.32), mattressMat);
-  pillow.position.set(0.04, 0.92, -0.68);
-  pillow.rotation.y = 0.18;
-  group.add(pillow);
+  // Strapped compressed-air dive cylinder resting on deck
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.78, 12), tankMat);
+  tank.rotation.x = Math.PI / 2;
+  tank.position.set(-0.12, 0.91, -0.32);
+  tank.castShadow = true;
+  group.add(tank);
 
-  const legGeo = new THREE.CylinderGeometry(0.024, 0.024, 0.66, 8);
+  const legGeo = new THREE.CylinderGeometry(0.026, 0.026, 0.66, 8);
   const wheelGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.035, 10);
   wheelGeo.rotateZ(Math.PI / 2);
   for (const [lx, lz] of [
@@ -266,11 +271,11 @@ export function createGurney(
 
   const headCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-0.4, 0.74, -0.92),
-    new THREE.Vector3(-0.38, 1.18, -0.92),
-    new THREE.Vector3(0.38, 1.18, -0.92),
+    new THREE.Vector3(-0.38, 1.16, -0.92),
+    new THREE.Vector3(0.38, 1.16, -0.92),
     new THREE.Vector3(0.4, 0.74, -0.92),
   ]);
-  const headRail = new THREE.Mesh(new THREE.TubeGeometry(headCurve, 16, 0.02, 8, false), steelMat);
+  const headRail = new THREE.Mesh(new THREE.TubeGeometry(headCurve, 16, 0.022, 8, false), steelMat);
   headRail.castShadow = true;
   group.add(headRail);
 
@@ -346,7 +351,7 @@ export function createWallPipeCluster(
 }
 
 /**
- * 5. Composite 6-part Hospital IV Drip Stand (bottom-center pivot at y=0)
+ * 5. Composite Submerged O2 Cylinder & Pressure Manifold Stand (bottom-center pivot at y=0)
  */
 export function createIVStand(
   textures: SanatoriumTextures,
@@ -357,73 +362,57 @@ export function createIVStand(
     {
       map: textures.metalMap,
       roughnessMap: textures.metalRoughness,
-      color: 0xaab0b8,
-      roughness: 0.25,
-      metalness: 0.92,
+      color: 0x7e8892,
+      roughness: 0.42,
+      metalness: 0.88,
     },
     isSoftwareGl,
   );
-  const glassMat = makeStd(
+  const tankMat = makeStd(
     {
-      color: 0xe6eae8,
-      roughness: 0.14,
-      metalness: 0.1,
+      map: textures.metalMap,
+      color: 0xc29338,
+      roughness: 0.45,
+      metalness: 0.55,
     },
     isSoftwareGl,
   );
   const tubeMat = makeStd(
     {
-      color: 0x26282a,
+      color: 0x1a1d20,
       roughness: 0.85,
-      metalness: 0.05,
+      metalness: 0.08,
     },
     isSoftwareGl,
   );
 
-  // Base hub + 4 radial legs
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.08, 10), chromeMat);
-  hub.position.y = 0.08;
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.07, 12), chromeMat);
+  hub.position.y = 0.035;
   group.add(hub);
 
-  for (let i = 0; i < 4; i++) {
-    const a = (i * Math.PI) / 2 + Math.PI / 4;
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 0.34), chromeMat);
-    leg.position.set(Math.sin(a) * 0.15, 0.045, Math.cos(a) * 0.15);
-    leg.rotation.y = a;
-    leg.castShadow = true;
-    group.add(leg);
-  }
+  // Oxygen tank cylinder + valve dome
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.92, 12), tankMat);
+  tank.position.y = 0.52;
+  tank.castShadow = true;
+  group.add(tank);
 
-  // Tall telescopic vertical pole
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 1.92, 10), chromeMat);
-  pole.position.y = 1.0;
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 1.56, 8), chromeMat);
+  pole.position.set(0.12, 0.8, 0);
   pole.castShadow = true;
   group.add(pole);
 
-  // Curved top hook arm
-  const hookCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.16, 1.88, 0),
-    new THREE.Vector3(-0.12, 1.98, 0),
-    new THREE.Vector3(0.12, 1.98, 0),
-    new THREE.Vector3(0.16, 1.88, 0),
-  ]);
-  const hook = new THREE.Mesh(new THREE.TubeGeometry(hookCurve, 14, 0.01, 6, false), chromeMat);
-  group.add(hook);
+  const gauge = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.035, 12), chromeMat);
+  gauge.rotation.x = Math.PI / 2;
+  gauge.position.set(0.12, 1.52, 0.03);
+  group.add(gauge);
 
-  // Hanging glass IV bottle
-  const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.18, 12), glassMat);
-  bottle.position.set(0.14, 1.72, 0);
-  bottle.castShadow = true;
-  group.add(bottle);
-
-  // Dangling rubber drip tube
   const dripCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.14, 1.63, 0),
-    new THREE.Vector3(0.18, 1.25, 0.05),
-    new THREE.Vector3(0.07, 0.85, -0.04),
-    new THREE.Vector3(0.12, 0.52, 0.03),
+    new THREE.Vector3(0, 1.0, 0),
+    new THREE.Vector3(0.16, 1.12, 0.08),
+    new THREE.Vector3(0.08, 0.72, -0.06),
+    new THREE.Vector3(0.15, 0.35, 0.04),
   ]);
-  const tube = new THREE.Mesh(new THREE.TubeGeometry(dripCurve, 16, 0.008, 5, false), tubeMat);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(dripCurve, 14, 0.011, 6, false), tubeMat);
   group.add(tube);
 
   addContactShadow(group, textures, 0.36, 0.5);
@@ -522,7 +511,7 @@ export function createMedicalCabinet(
 }
 
 /**
- * 7. Composite 5-part Barred Asylum Security Window (wall-mounted)
+ * 7. Composite Reinforced Submarine Porthole Window (wall-mounted)
  */
 export function createBarredWindow(
   textures: SanatoriumTextures,
@@ -533,48 +522,41 @@ export function createBarredWindow(
     {
       map: textures.metalMap,
       roughnessMap: textures.metalRoughness,
-      color: 0x2c2e32,
-      roughness: 0.62,
-      metalness: 0.85,
+      color: 0x3b4248,
+      roughness: 0.56,
+      metalness: 0.86,
     },
     isSoftwareGl,
   );
   const paneMat = makeStd(
     {
       map: textures.windowGlowMap,
-      emissive: 0xdce4ee,
+      emissive: 0x76b8c4,
       emissiveMap: textures.windowGlowMap,
-      emissiveIntensity: 0.95,
-      roughness: 0.2,
+      emissiveIntensity: 0.9,
+      roughness: 0.18,
     },
     isSoftwareGl,
   );
 
-  // Frosted moonlight glass pane
-  const pane = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 1.22), paneMat);
-  pane.position.set(0, 1.82, 0.03);
+  // Circular abyssal ocean view glass pane
+  const pane = new THREE.Mesh(new THREE.CircleGeometry(0.46, 20), paneMat);
+  pane.position.set(0, 1.78, 0.035);
   group.add(pane);
 
-  // Heavy outer iron frame bars
-  const sill = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.08, 0.14), ironMat);
-  sill.position.set(0, 1.18, 0.05);
-  const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.08, 0.14), ironMat);
-  lintel.position.set(0, 2.45, 0.05);
-  group.add(sill, lintel);
+  // Bolted submarine brass/steel porthole collar ring
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.065, 10, 24), ironMat);
+  ring.position.set(0, 1.78, 0.055);
+  ring.castShadow = true;
+  group.add(ring);
 
-  for (const fx of [-0.47, 0.47]) {
-    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.32, 0.12), ironMat);
-    jamb.position.set(fx, 1.82, 0.05);
-    group.add(jamb);
-  }
-
-  // 4 Vertical Prison Bars
-  for (const bx of [-0.26, -0.085, 0.085, 0.26]) {
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.24, 8), ironMat);
-    bar.position.set(bx, 1.82, 0.065);
-    bar.castShadow = true;
-    group.add(bar);
-  }
+  // Crossed pressure protection bars
+  const hBar = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.9, 8), ironMat);
+  hBar.rotation.z = Math.PI / 2;
+  hBar.position.set(0, 1.78, 0.07);
+  const vBar = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.9, 8), ironMat);
+  vBar.position.set(0, 1.78, 0.07);
+  group.add(hBar, vBar);
 
   return group;
 }
@@ -703,40 +685,46 @@ export function createFloorStain(
 }
 
 /**
- * 11. Composite Pickup Box (Ammo or Medkit, bottom-center pivot at y=0)
+ * 11. Composite Pickup Box (Battery or Medkit, bottom-center pivot at y=0)
  */
 export function createPickupBox(
-  kind: 'ammo' | 'medkit',
+  kind: 'battery' | 'medkit',
   textures: SanatoriumTextures,
   isSoftwareGl: boolean,
 ): THREE.Group {
   const group = new THREE.Group();
   const baseMat = makeStd(
     {
-      map: kind === 'ammo' ? textures.metalMap : textures.fabricMap,
-      color: kind === 'ammo' ? 0x9aa0a8 : 0xe4e4de,
-      roughness: kind === 'ammo' ? 0.42 : 0.72,
-      metalness: kind === 'ammo' ? 0.78 : 0.08,
+      map: kind === 'battery' ? textures.metalMap : textures.fabricMap,
+      color: kind === 'battery' ? 0x2c323a : 0xe4e4de,
+      roughness: kind === 'battery' ? 0.38 : 0.72,
+      metalness: kind === 'battery' ? 0.82 : 0.08,
     },
     isSoftwareGl,
   );
   const accentMat = makeStd(
     {
-      color: kind === 'ammo' ? 0xffffff : 0x161616,
-      emissive: kind === 'ammo' ? 0x555555 : 0x222222,
-      emissiveIntensity: 0.4,
-      roughness: 0.3,
-      metalness: 0.4,
+      color: kind === 'battery' ? 0xf3b644 : 0x161616,
+      emissive: kind === 'battery' ? 0xd98a16 : 0x222222,
+      emissiveIntensity: kind === 'battery' ? 0.85 : 0.4,
+      roughness: 0.25,
+      metalness: 0.45,
     },
     isSoftwareGl,
   );
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.22, 0.26), baseMat);
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(kind === 'battery' ? 0.28 : 0.36, 0.22, kind === 'battery' ? 0.2 : 0.26),
+    baseMat,
+  );
   body.position.y = 0.11;
   body.castShadow = true;
   group.add(body);
 
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.04, 0.28), accentMat);
+  const lid = new THREE.Mesh(
+    new THREE.BoxGeometry(kind === 'battery' ? 0.3 : 0.38, 0.04, kind === 'battery' ? 0.22 : 0.28),
+    accentMat,
+  );
   lid.position.y = 0.23;
   group.add(lid);
 
@@ -756,10 +744,11 @@ export function createPickupBox(
     bar2.position.y = 0.256;
     group.add(bar1, bar2);
   } else {
-    for (const sx of [-0.07, 0.07]) {
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.015, 0.18), accentMat);
-      strip.position.set(sx, 0.256, 0);
-      group.add(strip);
+    // Dual brass/glow battery terminals
+    for (const sx of [-0.065, 0.065]) {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.045, 10), accentMat);
+      cap.position.set(sx, 0.27, 0);
+      group.add(cap);
     }
   }
 
@@ -768,7 +757,7 @@ export function createPickupBox(
 }
 
 /**
- * 12. Composite 5-part Reinforced Asylum Exit Door
+ * 12. Composite Watertight Submarine Exit Hatch with Pressure Wheel
  */
 export function createExitDoor(
   textures: SanatoriumTextures,
@@ -779,7 +768,7 @@ export function createExitDoor(
     {
       map: textures.metalMap,
       roughnessMap: textures.metalRoughness,
-      color: 0x45484e,
+      color: 0x454e56,
       roughness: 0.55,
       metalness: 0.85,
     },
@@ -794,6 +783,14 @@ export function createExitDoor(
     },
     isSoftwareGl,
   );
+  const wheelMat = makeStd(
+    {
+      color: 0xd94238,
+      roughness: 0.4,
+      metalness: 0.6,
+    },
+    isSoftwareGl,
+  );
   const beaconMat = makeStd(
     {
       color: 0xffffff,
@@ -804,485 +801,482 @@ export function createExitDoor(
     isSoftwareGl,
   );
 
-  const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.42, 2.55, 0.12), doorMat);
+  const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.42, 2.55, 0.14), doorMat);
   leaf.position.y = 1.275;
   leaf.receiveShadow = true;
   group.add(leaf);
 
   for (const fx of [-0.76, 0.76]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.68, 0.2), frameMat);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.68, 0.24), frameMat);
     post.position.set(fx, 1.34, 0);
     group.add(post);
   }
-  const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.14, 0.22), frameMat);
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.66, 0.16, 0.26), frameMat);
   lintel.position.set(0, 2.65, 0);
   group.add(lintel);
 
-  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.05, 8), frameMat);
-  bar.rotation.z = Math.PI / 2;
-  bar.position.set(0, 1.08, 0.1);
-  group.add(bar);
+  // Submarine watertight locking wheel
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.026, 8, 18), wheelMat);
+  wheel.position.set(0, 1.15, 0.12);
+  group.add(wheel);
 
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), beaconMat);
-  beacon.position.set(0, 2.82, 0.12);
+  for (let i = 0; i < 3; i++) {
+    const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.42, 6), wheelMat);
+    spoke.rotation.z = (i * Math.PI) / 3;
+    spoke.position.set(0, 1.15, 0.12);
+    group.add(spoke);
+  }
+
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), beaconMat);
+  beacon.position.set(0, 2.82, 0.14);
   group.add(beacon);
 
   return group;
 }
 
 /**
- * 13. Layered 2.5D Articulated Ceiling Horror ("A Coisa do Teto")
- * Uses chroma-keyed + despilled high-detail horror illustration cutouts with
- * generated normal maps and alpha-cutout depth shadows, rigged upside-down on ceiling planks.
+ * 13. Grounded 3D Killer Enemy ("Character_Killer_05" FBX + UAL2/UAL1 Retargeted Clips)
  */
+export type KillerAnimState =
+  | 'idle'
+  | 'walk'
+  | 'run'
+  | 'attack'
+  | 'attackAlt'
+  | 'hit'
+  | 'death';
+
 export interface CreatureRig {
   group: THREE.Group;
-  bodyPivot: THREE.Group;
-  bodyFrontMesh: THREE.Mesh;
-  bodyBackMesh: THREE.Mesh;
-  head: THREE.Group;
-  headFrontMesh: THREE.Mesh;
-  headBackMesh: THREE.Mesh;
-  leftArm: THREE.Group;
-  rightArm: THREE.Group;
-  leftLeg: THREE.Group;
-  rightLeg: THREE.Group;
+  modelPivot: THREE.Group;
+  hitboxMesh: THREE.Mesh;
+  loaded: boolean;
   materials: THREE.MeshStandardMaterial[];
+  mixer?: THREE.AnimationMixer;
+  actions?: Record<KillerAnimState, THREE.AnimationAction>;
+  activeOneShot: 'attack' | 'attackAlt' | 'hit' | 'death' | null;
+  deathPlayed: boolean;
 }
 
-function loadChromaCutoutSprite(url: string): {
-  map: THREE.CanvasTexture;
-  normalMap: THREE.CanvasTexture;
-} {
-  const S = 256;
-  const colorCanvas = document.createElement('canvas');
-  colorCanvas.width = S;
-  colorCanvas.height = S;
-  const cCtx = colorCanvas.getContext('2d')!;
-  cCtx.clearRect(0, 0, S, S);
+export function resetKillerAnimation(rig: CreatureRig): void {
+  rig.activeOneShot = null;
+  rig.deathPlayed = false;
+  if (!rig.mixer || !rig.actions) return;
 
-  const normCanvas = document.createElement('canvas');
-  normCanvas.width = S;
-  normCanvas.height = S;
-  const nCtx = normCanvas.getContext('2d')!;
-  nCtx.fillStyle = 'rgb(128,128,255)';
-  nCtx.fillRect(0, 0, S, S);
+  rig.actions.attack.stop();
+  rig.actions.attackAlt.stop();
+  rig.actions.hit.stop();
+  rig.actions.death.stop();
 
-  const map = new THREE.CanvasTexture(colorCanvas);
-  map.colorSpace = THREE.SRGBColorSpace;
-  map.wrapS = THREE.ClampToEdgeWrapping;
-  map.wrapT = THREE.ClampToEdgeWrapping;
-
-  const normalMap = new THREE.CanvasTexture(normCanvas);
-  normalMap.colorSpace = THREE.NoColorSpace;
-  normalMap.wrapS = THREE.ClampToEdgeWrapping;
-  normalMap.wrapT = THREE.ClampToEdgeWrapping;
-
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => {
-    cCtx.drawImage(img, 0, 0, S, S);
-    const imgData = cCtx.getImageData(0, 0, S, S);
-    const d = imgData.data;
-    const heights = new Float32Array(S * S);
-
-    for (let i = 0; i < S * S; i++) {
-      const idx = i * 4;
-      let r = d[idx];
-      let g = d[idx + 1];
-      let b = d[idx + 2];
-      const maxRB = Math.max(r, b);
-      const greenness = g - maxRB;
-
-      if (greenness > 20 && g > 58) {
-        d[idx + 3] = 0;
-        heights[i] = 0;
-      } else {
-        if (greenness > 3) {
-          g = maxRB + 1;
-          if (greenness > 11) {
-            const fade = Math.max(0, 1 - (greenness - 11) / 11);
-            r = Math.round(r * fade);
-            g = Math.round(g * fade);
-            b = Math.round(b * fade);
-          }
-        }
-        // Subtle chiaroscuro contrast stretch so pale highlights and ink crosshatching read sharply in 1-bit
-        r = Math.min(255, Math.max(0, Math.round((r - 14) * 1.1)));
-        g = Math.min(255, Math.max(0, Math.round((g - 14) * 1.1)));
-        b = Math.min(255, Math.max(0, Math.round((b - 14) * 1.1)));
-        d[idx] = r;
-        d[idx + 1] = g;
-        d[idx + 2] = b;
-        d[idx + 3] = 255;
-        heights[i] = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      }
-    }
-    cCtx.putImageData(imgData, 0, 0);
-    map.needsUpdate = true;
-
-    // Build tangent-space normal map from sprite shading for reactive flashlight relief
-    const nImg = nCtx.createImageData(S, S);
-    const nd = nImg.data;
-    for (let y = 0; y < S; y++) {
-      const ym = Math.max(0, y - 1);
-      const yp = Math.min(S - 1, y + 1);
-      for (let x = 0; x < S; x++) {
-        const xm = Math.max(0, x - 1);
-        const xp = Math.min(S - 1, x + 1);
-        const dx = (heights[y * S + xm] - heights[y * S + xp]) * 2.2;
-        const dy = (heights[ym * S + x] - heights[yp * S + x]) * 2.2;
-        const len = Math.hypot(dx, dy, 1);
-        const idx = (y * S + x) * 4;
-        nd[idx] = Math.round(((dx / len) * 0.5 + 0.5) * 255);
-        nd[idx + 1] = Math.round(((dy / len) * 0.5 + 0.5) * 255);
-        nd[idx + 2] = Math.round(((1 / len) * 0.5 + 0.5) * 255);
-        nd[idx + 3] = 255;
-      }
-    }
-    nCtx.putImageData(nImg, 0, 0);
-    normalMap.needsUpdate = true;
-  };
-  img.src = url;
-
-  return { map, normalMap };
-}
-
-function makeCurvedCutoutGeo(
-  width: number,
-  height: number,
-  bowZ: number,
-  flipU = false,
-): THREE.PlaneGeometry {
-  const geo = new THREE.PlaneGeometry(width, height, 6, 6);
-  const pos = geo.attributes.position as THREE.BufferAttribute;
-  const uv = geo.attributes.uv as THREE.BufferAttribute;
-  for (let i = 0; i < pos.count; i++) {
-    const nx = (pos.getX(i) / (width * 0.5));
-    const ny = (pos.getY(i) / (height * 0.5));
-    const arch = Math.max(0, 1 - nx * nx * 0.65) * Math.max(0.25, 1 - ny * ny * 0.35);
-    pos.setZ(i, pos.getZ(i) + arch * bowZ);
-    if (flipU) {
-      uv.setX(i, 1 - uv.getX(i));
-    }
-  }
-  geo.computeVertexNormals();
-  return geo;
-}
-
-function makeSpriteCutoutMaterial(
-  sprite: { map: THREE.CanvasTexture; normalMap: THREE.CanvasTexture },
-  isSoftwareGl: boolean,
-): { mat: THREE.MeshStandardMaterial; depthMat: THREE.MeshDepthMaterial } {
-  const mat = makeStd(
-    {
-      map: sprite.map,
-      normalMap: sprite.normalMap,
-      normalScale: new THREE.Vector2(0.95, 0.95),
-      color: 0xffffff,
-      roughness: 0.84,
-      metalness: 0.04,
-      alphaTest: 0.45,
-      side: THREE.DoubleSide,
-    },
-    isSoftwareGl,
-  );
-  const depthMat = new THREE.MeshDepthMaterial({
-    depthPacking: THREE.RGBADepthPacking,
-    map: sprite.map,
-    alphaTest: 0.45,
-    side: THREE.DoubleSide,
-  });
-  return { mat, depthMat };
+  rig.actions.idle.reset().setEffectiveWeight(1).setEffectiveTimeScale(1).play();
+  rig.actions.walk.reset().setEffectiveWeight(0).setEffectiveTimeScale(1).play();
+  rig.actions.run.reset().setEffectiveWeight(0).setEffectiveTimeScale(1).play();
+  rig.mixer.update(0);
 }
 
 export function createCreature(
   textures: SanatoriumTextures,
   isSoftwareGl: boolean,
+  onLoaded?: () => void,
 ): CreatureRig {
   const group = new THREE.Group();
-  const bodyPivot = new THREE.Group();
-  bodyPivot.position.set(0, -0.02, 0);
-  group.add(bodyPivot);
+  const modelPivot = new THREE.Group();
+  group.add(modelPivot);
 
-  // Subtle ceiling-contact anchor disc where hips & skirt press into wooden planks
-  const anchorGeo = new THREE.PlaneGeometry(1.45, 1.55);
-  anchorGeo.rotateX(Math.PI / 2);
-  const anchorMat = new THREE.MeshBasicMaterial({
-    map: textures.shadowDisc,
-    color: 0x030304,
-    transparent: true,
-    opacity: 0.65,
-    depthWrite: false,
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
-  });
-  const ceilingAnchor = new THREE.Mesh(anchorGeo, anchorMat);
-  ceilingAnchor.position.set(0, 0.008, -0.14);
-  ceilingAnchor.raycast = () => {};
-  bodyPivot.add(ceilingAnchor);
+  // Grounded contact shadow disc beneath the killer's boots
+  addContactShadow(group, textures, 0.68, 0.7);
 
-  // 1. Front & Back Torso + Tattered Hospital Gown cutouts (deep 3D arch so torso reads volumetrically)
-  const bodyGeo = makeCurvedCutoutGeo(1.06, 1.12, 0.13, false);
-  const bodyFrontSprite = loadChromaCutoutSprite(bodySpriteUrl);
-  const bodyFrontMats = makeSpriteCutoutMaterial(bodyFrontSprite, isSoftwareGl);
-  const bodyFrontMesh = new THREE.Mesh(bodyGeo, bodyFrontMats.mat);
-  bodyFrontMesh.customDepthMaterial = bodyFrontMats.depthMat;
-  bodyFrontMesh.castShadow = true;
-  bodyFrontMesh.rotation.x = -0.88;
-  bodyFrontMesh.position.set(0, -0.34, -0.04);
-  bodyPivot.add(bodyFrontMesh);
+  // Invisible proxy box sized to towering Character_Killer_05 (~2.26m tall standing figure)
+  const hitboxMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.76, 2.24, 0.5),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  hitboxMesh.position.set(0, 1.12, 0);
+  group.add(hitboxMesh);
 
-  const bodyBackSprite = loadChromaCutoutSprite(bodyBackSpriteUrl);
-  const bodyBackMats = makeSpriteCutoutMaterial(bodyBackSprite, isSoftwareGl);
-  const bodyBackMesh = new THREE.Mesh(bodyGeo, bodyBackMats.mat);
-  bodyBackMesh.customDepthMaterial = bodyBackMats.depthMat;
-  bodyBackMesh.castShadow = true;
-  bodyBackMesh.rotation.x = -0.88;
-  bodyBackMesh.position.set(0, -0.34, -0.04);
-  bodyBackMesh.visible = false;
-  bodyPivot.add(bodyBackMesh);
+  // Load Character_Killer_05.png explicitly in sRGB color space for 1-bit contrast fidelity
+  const texLoader = new THREE.TextureLoader();
+  const killerMap = texLoader.load('/assets/killer/Character_Killer_05.png');
+  killerMap.colorSpace = THREE.SRGBColorSpace;
+  killerMap.anisotropy = 4;
 
-  // 2. Front & Back Upside-down Head cutouts pivoted smoothly inside torso neck collar
-  const head = new THREE.Group();
-  head.position.set(0, -0.56, 0.24);
-  head.rotation.x = 0.22;
-  const headGeo = makeCurvedCutoutGeo(0.68, 0.76, 0.085, false);
-  headGeo.translate(0, -0.31, 0.01);
+  const killerMat = makeStd(
+    {
+      map: killerMap,
+      color: 0xe6e2da,
+      roughness: 0.72,
+      metalness: 0.06,
+      side: THREE.DoubleSide,
+    },
+    isSoftwareGl,
+  );
 
-  const headFrontSprite = loadChromaCutoutSprite(headSpriteUrl);
-  const headFrontMats = makeSpriteCutoutMaterial(headFrontSprite, isSoftwareGl);
-  const headFrontMesh = new THREE.Mesh(headGeo, headFrontMats.mat);
-  headFrontMesh.customDepthMaterial = headFrontMats.depthMat;
-  headFrontMesh.castShadow = true;
-  head.add(headFrontMesh);
-
-  const headBackSprite = loadChromaCutoutSprite(headBackSpriteUrl);
-  const headBackMats = makeSpriteCutoutMaterial(headBackSprite, isSoftwareGl);
-  const headBackMesh = new THREE.Mesh(headGeo, headBackMats.mat);
-  headBackMesh.customDepthMaterial = headBackMats.depthMat;
-  headBackMesh.castShadow = true;
-  headBackMesh.visible = false;
-  head.add(headBackMesh);
-  bodyPivot.add(head);
-
-  // 3. Articulated Left & Right Bare Spider-Arms socketed cleanly into torn gown sleeves
-  const armSprite = loadChromaCutoutSprite(armSpriteUrl);
-  const armMats = makeSpriteCutoutMaterial(armSprite, isSoftwareGl);
-
-  const rightArm = new THREE.Group();
-  rightArm.position.set(0.24, -0.49, 0.14);
-  rightArm.rotation.set(-0.22, 0, 0.18);
-  const rightArmGeo = makeCurvedCutoutGeo(0.92, 0.92, 0.055, false);
-  rightArmGeo.translate(0.30, 0.24, -0.02);
-  const rightArmMesh = new THREE.Mesh(rightArmGeo, armMats.mat);
-  rightArmMesh.customDepthMaterial = armMats.depthMat;
-  rightArmMesh.castShadow = true;
-  rightArm.add(rightArmMesh);
-  bodyPivot.add(rightArm);
-
-  const leftArm = new THREE.Group();
-  leftArm.position.set(-0.24, -0.49, 0.14);
-  leftArm.rotation.set(-0.22, 0, -0.18);
-  const leftArmGeo = makeCurvedCutoutGeo(0.92, 0.92, 0.055, true);
-  leftArmGeo.translate(-0.30, 0.24, -0.02);
-  const leftArmMesh = new THREE.Mesh(leftArmGeo, armMats.mat);
-  leftArmMesh.customDepthMaterial = armMats.depthMat;
-  leftArmMesh.castShadow = true;
-  leftArm.add(leftArmMesh);
-  bodyPivot.add(leftArm);
-
-  // 4. Articulated Left & Right Bare Bent Spider-Legs socketed cleanly under tattered skirt hem
-  const legSprite = loadChromaCutoutSprite(legSpriteUrl);
-  const legMats = makeSpriteCutoutMaterial(legSprite, isSoftwareGl);
-
-  const rightLeg = new THREE.Group();
-  rightLeg.position.set(0.18, -0.20, -0.24);
-  rightLeg.rotation.set(0.18, -0.42, -0.82);
-  const rightLegGeo = makeCurvedCutoutGeo(0.92, 0.92, 0.055, false);
-  rightLegGeo.translate(0.23, 0.33, -0.02);
-  const rightLegMesh = new THREE.Mesh(rightLegGeo, legMats.mat);
-  rightLegMesh.customDepthMaterial = legMats.depthMat;
-  rightLegMesh.castShadow = true;
-  rightLeg.add(rightLegMesh);
-  bodyPivot.add(rightLeg);
-
-  const leftLeg = new THREE.Group();
-  leftLeg.position.set(-0.18, -0.20, -0.24);
-  leftLeg.rotation.set(0.18, 0.42, 0.82);
-  const leftLegGeo = makeCurvedCutoutGeo(0.92, 0.92, 0.055, true);
-  leftLegGeo.translate(-0.23, 0.33, -0.02);
-  const leftLegMesh = new THREE.Mesh(leftLegGeo, legMats.mat);
-  leftLegMesh.customDepthMaterial = legMats.depthMat;
-  leftLegMesh.castShadow = true;
-  leftLeg.add(leftLegMesh);
-  bodyPivot.add(leftLeg);
-
-  return {
+  const rig: CreatureRig = {
     group,
-    bodyPivot,
-    bodyFrontMesh,
-    bodyBackMesh,
-    head,
-    headFrontMesh,
-    headBackMesh,
-    leftArm,
-    rightArm,
-    leftLeg,
-    rightLeg,
-    materials: [
-      bodyFrontMats.mat,
-      bodyBackMats.mat,
-      headFrontMats.mat,
-      headBackMats.mat,
-      armMats.mat,
-      legMats.mat,
-    ],
+    modelPivot,
+    hitboxMesh,
+    loaded: false,
+    materials: [killerMat],
+    activeOneShot: null,
+    deathPlayed: false,
   };
+
+  // Redirect embedded FBX texture references to our local public PNG to avoid 404s
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((url) =>
+    url.toLowerCase().includes('character_killer_05.png')
+      ? '/assets/killer/Character_Killer_05.png'
+      : url,
+  );
+
+  const fbxLoader = new FBXLoader(manager);
+
+  Promise.all([
+    new Promise<THREE.Group>((resolve, reject) =>
+      fbxLoader.load('/assets/killer/Character_Killer_05.fbx', resolve, undefined, reject),
+    ),
+    fetch('/assets/killer/killer_animations.json').then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<Partial<Record<KillerAnimState, THREE.AnimationClipJSON>>>;
+    }),
+  ])
+    .then(([fbx, clipsJson]) => {
+      let fbxSkinned: THREE.SkinnedMesh | undefined;
+
+      fbx.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.material = Array.isArray(mesh.material)
+            ? mesh.material.map(() => killerMat)
+            : killerMat;
+          mesh.castShadow = !isSoftwareGl;
+          mesh.receiveShadow = true;
+          mesh.frustumCulled = false;
+        }
+        if ((child as THREE.SkinnedMesh).isSkinnedMesh && !fbxSkinned) {
+          fbxSkinned = child as THREE.SkinnedMesh;
+        }
+      });
+
+      if (fbxSkinned) {
+        const mixer = new THREE.AnimationMixer(fbxSkinned);
+        const actions = {} as Record<KillerAnimState, THREE.AnimationAction>;
+        const states: KillerAnimState[] = [
+          'idle',
+          'walk',
+          'run',
+          'attack',
+          'attackAlt',
+          'hit',
+          'death',
+        ];
+
+        for (const state of states) {
+          const raw = clipsJson[state];
+          const clip = raw
+            ? THREE.AnimationClip.parse(raw)
+            : new THREE.AnimationClip(state, 0.5, []);
+          const action = mixer.clipAction(clip);
+
+          if (state === 'idle' || state === 'walk' || state === 'run') {
+            action.loop = THREE.LoopRepeat;
+            action.setEffectiveWeight(state === 'idle' ? 1 : 0);
+            action.play();
+          } else {
+            action.loop = THREE.LoopOnce;
+            action.clampWhenFinished = state === 'death';
+            if (state === 'attackAlt') action.timeScale = 1.45;
+          }
+
+          actions[state] = action;
+        }
+
+        mixer.addEventListener('finished', (ev) => {
+          if (
+            ev.action === actions.attack ||
+            ev.action === actions.attackAlt ||
+            ev.action === actions.hit
+          ) {
+            ev.action.fadeOut(0.14);
+            if (rig.activeOneShot !== 'death') {
+              rig.activeOneShot = null;
+            }
+          }
+        });
+
+        rig.mixer = mixer;
+        rig.actions = actions;
+      }
+
+      // Scale up (~2.26m towering stature) & center boots horizontally over (0, 0) flush on floor y = 0
+      fbx.scale.setScalar(1.22);
+      fbx.position.set(0.078, 0.005, -0.024);
+      modelPivot.add(fbx);
+      rig.loaded = true;
+      onLoaded?.();
+    })
+    .catch((err) => {
+      console.error('Failed to load Character_Killer_05 or killer_animations.json:', err);
+    });
+
+  return rig;
 }
 
 /**
- * Projected distorted ceiling shadow mesh cast against corridor lamp lighting
+ * 14. Composite Hinged Sanatorium Room Door (fills full 2.4m x 3.1m cell doorway with frame + transom)
  */
-export function createCeilingShadowSilhouette(textures: SanatoriumTextures): THREE.Mesh {
-  const geo = new THREE.PlaneGeometry(1.75, 2.25);
-  geo.rotateX(Math.PI / 2);
-  const mat = new THREE.MeshBasicMaterial({
-    map: textures.shadowDisc,
-    color: 0x020203,
-    transparent: true,
-    opacity: 0.78,
-    depthWrite: false,
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
-  });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.visible = false;
-  return mesh;
-}
-
-/**
- * 14. Composite 9-part First-Person Pistol + Supporting Sleeve/Hand & Flashlight
- */
-export interface WeaponRig {
+export interface InteriorDoorRig {
   group: THREE.Group;
-  slide: THREE.Mesh;
-  muzzleFlashMesh: THREE.Mesh;
-  torchLensMat: THREE.MeshStandardMaterial;
+  doorPivot: THREE.Group;
+  boltMesh: THREE.Mesh;
 }
 
-export function createFirstPersonWeapon(
+export function createInteriorDoor(
   textures: SanatoriumTextures,
   isSoftwareGl: boolean,
-): WeaponRig {
+): InteriorDoorRig {
   const group = new THREE.Group();
 
-  const slideMat = makeStd(
+  const wallFillMat = makeStd(
     {
-      map: textures.metalMap,
-      roughnessMap: textures.metalRoughness,
-      color: 0xb6bac2,
-      roughness: 0.28,
-      metalness: 0.92,
-    },
-    isSoftwareGl,
-  );
-  const frameMat = makeStd(
-    {
-      color: 0x2c2e32,
-      roughness: 0.78,
-      metalness: 0.25,
-    },
-    isSoftwareGl,
-  );
-  const gripMat = makeStd(
-    {
-      map: textures.fabricMap,
-      color: 0x3b3d40,
+      map: textures.wallMap,
+      normalMap: textures.wallNormal,
+      normalScale: new THREE.Vector2(1.2, 1.2),
+      roughnessMap: textures.wallRoughness,
       roughness: 0.92,
       metalness: 0.05,
     },
     isSoftwareGl,
   );
-  const sleeveMat = makeStd(
+  const frameMat = makeStd(
     {
-      map: textures.fabricMap,
-      color: 0x5c5e62,
-      roughness: 0.92,
-      metalness: 0.04,
+      map: textures.metalMap,
+      roughnessMap: textures.metalRoughness,
+      color: 0x3b3e45,
+      roughness: 0.56,
+      metalness: 0.78,
     },
     isSoftwareGl,
   );
-  const torchLensMat = makeStd(
+  const leafMat = makeStd(
     {
-      color: 0xffffff,
-      emissive: 0xfff5dc,
-      emissiveIntensity: 2.0,
-      roughness: 0.1,
+      map: textures.doorMap,
+      normalMap: textures.doorNormal,
+      color: 0xbcb6aa,
+      roughness: 0.68,
+      metalness: 0.25,
+    },
+    isSoftwareGl,
+  );
+  const glassMat = makeStd(
+    {
+      map: textures.windowGlowMap,
+      color: 0x9aa4b0,
+      transparent: true,
+      opacity: 0.42,
+      roughness: 0.2,
+      metalness: 0.1,
     },
     isSoftwareGl,
   );
 
-  // Machined pistol slide
-  const slide = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.055, 0.28), slideMat);
-  slide.position.set(0, 0.025, -0.02);
-  group.add(slide);
+  // Opening width = 1.28m, opening height = 2.50m (killer is 2.26m -> clears cleanly!)
+  const openW = 1.28;
+  const openH = 2.50;
+  const sideW = (CELL_SIZE - openW) / 2; // 0.56m wall fill per side
+  const wallThick = 0.28;
 
-  // Lower frame + grip
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.036, 0.26), frameMat);
-  frame.position.set(0, -0.015, -0.01);
-  group.add(frame);
+  // Left & Right masonry wall fills connecting seamlessly to adjoining cell blocks
+  for (const sx of [-openW / 2 - sideW / 2, openW / 2 + sideW / 2]) {
+    const sideWall = new THREE.Mesh(new THREE.BoxGeometry(sideW, WALL_HEIGHT, wallThick), wallFillMat);
+    sideWall.position.set(sx, WALL_HEIGHT / 2, 0);
+    sideWall.castShadow = !isSoftwareGl;
+    sideWall.receiveShadow = true;
+    group.add(sideWall);
+  }
 
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.13, 0.068), gripMat);
-  grip.position.set(0, -0.082, 0.072);
-  grip.rotation.x = 0.24;
-  group.add(grip);
+  // Upper transom wall above door lintel
+  const transomH = WALL_HEIGHT - openH;
+  const transom = new THREE.Mesh(new THREE.BoxGeometry(openW, transomH, wallThick), wallFillMat);
+  transom.position.set(0, openH + transomH / 2, 0);
+  transom.castShadow = !isSoftwareGl;
+  transom.receiveShadow = true;
+  group.add(transom);
 
-  // Barrel & Iron sights
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.06, 10), slideMat);
-  barrel.rotation.x = Math.PI / 2;
-  barrel.position.set(0, 0.022, -0.17);
-  group.add(barrel);
+  // Heavy steel jambs & lintel
+  for (const jx of [-openW / 2 + 0.03, openW / 2 - 0.03]) {
+    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.07, openH, wallThick + 0.06), frameMat);
+    jamb.position.set(jx, openH / 2, 0);
+    group.add(jamb);
+  }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(openW + 0.08, 0.08, wallThick + 0.06), frameMat);
+  lintel.position.set(0, openH - 0.04, 0);
+  group.add(lintel);
 
-  const frontSight = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.012, 0.012), slideMat);
-  frontSight.position.set(0, 0.058, -0.145);
-  const rearSight = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.012, 0.012), slideMat);
-  rearSight.position.set(0, 0.058, 0.105);
-  group.add(frontSight, rearSight);
+  // Hinged Door Leaf pivoted at left jamb (-openW / 2 + 0.06)
+  const leafW = openW - 0.12;
+  const leafH = openH - 0.08;
+  const doorPivot = new THREE.Group();
+  doorPivot.position.set(-leafW / 2, 0, 0);
 
-  // Under-barrel tactical flashlight housing + lens
-  const torchBody = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.11, 10), frameMat);
-  torchBody.rotation.x = Math.PI / 2;
-  torchBody.position.set(0, -0.044, -0.085);
-  group.add(torchBody);
+  // Lower & upper solid door sections leaving an eye-level barred vision window
+  const lowerBody = new THREE.Mesh(new THREE.BoxGeometry(leafW, 1.48, 0.07), leafMat);
+  lowerBody.position.set(leafW / 2, 0.74, 0);
+  lowerBody.castShadow = !isSoftwareGl;
+  lowerBody.receiveShadow = true;
 
-  const torchLens = new THREE.Mesh(new THREE.CircleGeometry(0.016, 10), torchLensMat);
-  torchLens.rotation.y = Math.PI;
-  torchLens.position.set(0, -0.044, -0.141);
-  group.add(torchLens);
+  const upperBody = new THREE.Mesh(new THREE.BoxGeometry(leafW, 0.42, 0.07), leafMat);
+  upperBody.position.set(leafW / 2, leafH - 0.21, 0);
+  upperBody.castShadow = !isSoftwareGl;
 
-  // Right forearm cuff silhouette holding pistol
-  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.052, 0.34, 8), sleeveMat);
-  arm.rotation.x = Math.PI / 2.3;
-  arm.position.set(0.025, -0.16, 0.22);
-  group.add(arm);
+  // Side stiles flanking vision window (y = 1.48 .. 2.00)
+  for (const stX of [0.16, leafW - 0.16]) {
+    const stile = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.52, 0.07), leafMat);
+    stile.position.set(stX, 1.74, 0);
+    doorPivot.add(stile);
+  }
 
-  // Muzzle flash cone
-  const flashMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.95,
-    side: THREE.DoubleSide,
-  });
-  const muzzleFlashMesh = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.22, 6), flashMat);
-  muzzleFlashMesh.rotation.x = -Math.PI / 2;
-  muzzleFlashMesh.position.set(0, 0.025, -0.28);
-  muzzleFlashMesh.visible = false;
-  group.add(muzzleFlashMesh);
+  // Frosted peep pane + 2 security bars
+  const pane = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.64, 0.5, 0.02), glassMat);
+  pane.position.set(leafW / 2, 1.74, 0);
+  doorPivot.add(pane);
 
-  return { group, slide, muzzleFlashMesh, torchLensMat };
+  for (const bx of [leafW / 2 - 0.12, leafW / 2 + 0.12]) {
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.5, 6), frameMat);
+    bar.position.set(bx, 1.74, 0);
+    doorPivot.add(bar);
+  }
+
+  // Door handle latches (front & back)
+  for (const hz of [-0.055, 0.055]) {
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.04), frameMat);
+    handle.position.set(leafW - 0.16, 1.04, hz);
+    doorPivot.add(handle);
+  }
+
+  // Sliding steel deadbolt lock indicator (shifts outward into jamb when locked)
+  const boltMesh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.095), frameMat);
+  boltMesh.position.set(leafW - 0.14, 1.24, 0);
+  doorPivot.add(boltMesh);
+
+  doorPivot.add(lowerBody, upperBody);
+  group.add(doorPivot);
+
+  return { group, doorPivot, boltMesh };
+}
+
+/**
+ * 15. Collectible Brass Exit Master Key + Wooden Pedestal Desk
+ */
+export function createMasterKeyItem(
+  _textures: SanatoriumTextures,
+  isSoftwareGl: boolean,
+): THREE.Group {
+  const group = new THREE.Group();
+  const brassMat = makeStd(
+    {
+      color: 0xf4d27a,
+      emissive: 0x7a5b14,
+      emissiveIntensity: 0.72,
+      roughness: 0.25,
+      metalness: 0.92,
+    },
+    isSoftwareGl,
+  );
+  const tagMat = makeStd(
+    {
+      color: 0xd92626,
+      emissive: 0x5c0c0c,
+      emissiveIntensity: 0.5,
+      roughness: 0.6,
+    },
+    isSoftwareGl,
+  );
+
+  const bow = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.014, 8, 16), brassMat);
+  bow.position.y = 0.08;
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.16, 8), brassMat);
+  shaft.position.set(0, -0.04, 0);
+  const tooth1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.016, 0.016), brassMat);
+  tooth1.position.set(0.025, -0.09, 0);
+  const tooth2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.014, 0.016), brassMat);
+  tooth2.position.set(0.02, -0.115, 0);
+  const tag = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.08, 0.01), tagMat);
+  tag.position.set(-0.07, 0.06, 0);
+  tag.rotation.z = 0.25;
+
+  group.add(bow, shaft, tooth1, tooth2, tag);
+  return group;
+}
+
+/**
+ * 16. Interactive Wall Power Breaker Panel (with animated lever & status beacon)
+ */
+export interface PowerBreakerRig {
+  group: THREE.Group;
+  leverPivot: THREE.Group;
+  beaconMat: THREE.MeshStandardMaterial;
+}
+
+export function createPowerBreakerPanel(
+  textures: SanatoriumTextures,
+  isSoftwareGl: boolean,
+): PowerBreakerRig {
+  const group = new THREE.Group();
+  const steelMat = makeStd(
+    {
+      map: textures.metalMap,
+      roughnessMap: textures.metalRoughness,
+      color: 0x5a6068,
+      roughness: 0.48,
+      metalness: 0.85,
+    },
+    isSoftwareGl,
+  );
+  const darkMat = makeStd(
+    {
+      color: 0x16181c,
+      roughness: 0.8,
+      metalness: 0.2,
+    },
+    isSoftwareGl,
+  );
+  const beaconMat = makeStd(
+    {
+      color: 0xff463d,
+      emissive: 0xff463d,
+      emissiveIntensity: 1.6,
+      roughness: 0.2,
+    },
+    isSoftwareGl,
+  );
+
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.82, 0.22), steelMat);
+  box.position.set(0, 1.48, 0.11);
+  box.castShadow = !isSoftwareGl;
+  group.add(box);
+
+  const face = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.68, 0.04), darkMat);
+  face.position.set(0, 1.48, 0.22);
+  group.add(face);
+
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), beaconMat);
+  beacon.position.set(0, 1.74, 0.25);
+  group.add(beacon);
+
+  const leverPivot = new THREE.Group();
+  leverPivot.position.set(0.32, 1.48, 0.14);
+  leverPivot.rotation.x = 0.65;
+
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.28, 8), steelMat);
+  arm.position.y = 0.14;
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.09, 10), beaconMat);
+  grip.rotation.z = Math.PI / 2;
+  grip.position.set(0.04, 0.26, 0);
+  leverPivot.add(arm, grip);
+  group.add(leverPivot);
+
+  return { group, leverPivot, beaconMat };
 }
 
 export interface LockerRig {
@@ -1394,3 +1388,670 @@ export function createWindowSilhouette(): THREE.Group {
   g.visible = false;
   return g;
 }
+
+/**
+ * 17. Composite 4-part Collectible Glass Apothecary Bottle (bottom-center pivot at y=0)
+ */
+export function createGlassBottleItem(
+  textures: SanatoriumTextures,
+  isSoftwareGl: boolean,
+): THREE.Group {
+  const group = new THREE.Group();
+  const glassMat = makeStd(
+    {
+      color: 0xdce8e2,
+      emissive: 0x354842,
+      emissiveIntensity: 0.45,
+      roughness: 0.14,
+      metalness: 0.12,
+    },
+    isSoftwareGl,
+  );
+  const labelMat = makeStd(
+    {
+      map: textures.paperMap,
+      color: 0xe6e0d0,
+      roughness: 0.88,
+      metalness: 0.02,
+    },
+    isSoftwareGl,
+  );
+  const corkMat = makeStd(
+    {
+      color: 0x6e4e32,
+      roughness: 0.92,
+      metalness: 0.0,
+    },
+    isSoftwareGl,
+  );
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.19, 12), glassMat);
+  body.position.y = 0.095;
+  body.castShadow = !isSoftwareGl;
+
+  const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.055, 0.055, 12), glassMat);
+  shoulder.position.y = 0.215;
+
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.022, 0.055, 10), glassMat);
+  neck.position.y = 0.268;
+
+  const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.015, 0.03, 8), corkMat);
+  cork.position.y = 0.305;
+
+  const label = new THREE.Mesh(new THREE.CylinderGeometry(0.057, 0.057, 0.09, 12, 1, true, -0.9, 1.8), labelMat);
+  label.position.y = 0.1;
+
+  group.add(body, shoulder, neck, cork, label);
+  addContactShadow(group, textures, 0.2, 0.48);
+  return group;
+}
+
+/**
+ * 18. Thrown Bottle Projectile Mesh (centered pivot for mid-air spin)
+ */
+export function createThrownBottleMesh(isSoftwareGl: boolean): THREE.Group {
+  const group = new THREE.Group();
+  const glassMat = makeStd(
+    {
+      color: 0xe4ece8,
+      emissive: 0x455850,
+      emissiveIntensity: 0.5,
+      roughness: 0.15,
+      metalness: 0.15,
+    },
+    isSoftwareGl,
+  );
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.052, 0.16, 10), glassMat);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.042, 0.08, 8), glassMat);
+  neck.position.y = 0.12;
+  group.add(body, neck);
+  return group;
+}
+
+/**
+ * 19. Composite 6-part Mechanical Nurse-Call Alarm / Wind-Up Decoy Stand
+ */
+export interface AlarmDecoyRig {
+  group: THREE.Group;
+  hammerPivot: THREE.Group;
+  beaconMat: THREE.MeshStandardMaterial;
+}
+
+export function createAlarmDecoy(
+  textures: SanatoriumTextures,
+  isSoftwareGl: boolean,
+): AlarmDecoyRig {
+  const group = new THREE.Group();
+  const ironMat = makeStd(
+    {
+      map: textures.metalMap,
+      roughnessMap: textures.metalRoughness,
+      color: 0x3b3e44,
+      roughness: 0.56,
+      metalness: 0.84,
+    },
+    isSoftwareGl,
+  );
+  const brassMat = makeStd(
+    {
+      color: 0xd4b66a,
+      roughness: 0.28,
+      metalness: 0.9,
+    },
+    isSoftwareGl,
+  );
+  const beaconMat = makeStd(
+    {
+      color: 0x808080,
+      emissive: 0x222222,
+      emissiveIntensity: 0.4,
+      roughness: 0.25,
+    },
+    isSoftwareGl,
+  );
+
+  // Stand column + base
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.06, 12), ironMat);
+  base.position.y = 0.03;
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.04, 1.04, 10), ironMat);
+  post.position.y = 0.55;
+  post.castShadow = !isSoftwareGl;
+
+  // Timer casing box
+  const housing = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.16), ironMat);
+  housing.position.set(0, 1.16, 0);
+  housing.castShadow = !isSoftwareGl;
+
+  // Twin brass alarm bells on top
+  for (const bx of [-0.08, 0.08]) {
+    const bell = new THREE.Mesh(
+      new THREE.SphereGeometry(0.062, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.58),
+      brassMat,
+    );
+    bell.position.set(bx, 1.32, 0);
+    group.add(bell);
+  }
+
+  // Oscillating striker hammer
+  const hammerPivot = new THREE.Group();
+  hammerPivot.position.set(0, 1.3, 0);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.08, 6), ironMat);
+  stem.position.y = 0.04;
+  const striker = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), brassMat);
+  striker.position.y = 0.08;
+  hammerPivot.add(stem, striker);
+
+  // Status indicator jewel
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.036, 10, 8), beaconMat);
+  beacon.position.set(0, 1.18, 0.09);
+
+  group.add(base, post, housing, hammerPivot, beacon);
+  addContactShadow(group, textures, 0.34, 0.55);
+  return { group, hammerPivot, beaconMat };
+}
+
+/**
+ * 20. Floor Broken Glass Hazard Patch (14 jagged reflective shards flush on y=0.008)
+ */
+export function createBrokenGlassPatch(
+  _textures: SanatoriumTextures,
+  isSoftwareGl: boolean,
+): THREE.Group {
+  const group = new THREE.Group();
+  const shardMat = makeStd(
+    {
+      color: 0xeef6f8,
+      emissive: 0x303c42,
+      emissiveIntensity: 0.38,
+      roughness: 0.08,
+      metalness: 0.72,
+    },
+    isSoftwareGl,
+  );
+
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2 + (i % 3) * 0.35;
+    const r = 0.08 + ((i * 37) % 10) * 0.055;
+    const sx = 0.06 + ((i * 19) % 7) * 0.018;
+    const sz = 0.035 + ((i * 23) % 5) * 0.012;
+    const shard = new THREE.Mesh(new THREE.ConeGeometry(sx, sz * 2.2, 3), shardMat);
+    shard.rotation.x = Math.PI / 2;
+    shard.rotation.z = a * 1.7;
+    shard.scale.set(1.0, 1.0, 0.14);
+    shard.position.set(Math.cos(a) * r, 0.012, Math.sin(a) * r);
+    group.add(shard);
+  }
+  return group;
+}
+
+/**
+ * 21. Composite Tippable Heavy Utility Cart / Barricade Obstacle
+ */
+export interface BarricadeObstacleRig {
+  group: THREE.Group;
+  tiltPivot: THREE.Group;
+}
+
+export function createBarricadeObstacle(
+  textures: SanatoriumTextures,
+  isSoftwareGl: boolean,
+): BarricadeObstacleRig {
+  const group = new THREE.Group();
+  const steelMat = makeStd(
+    {
+      map: textures.metalMap,
+      roughnessMap: textures.metalRoughness,
+      color: 0x767c84,
+      roughness: 0.45,
+      metalness: 0.84,
+    },
+    isSoftwareGl,
+  );
+  const padMat = makeStd(
+    {
+      map: textures.fabricMap,
+      color: 0x9c968c,
+      roughness: 0.9,
+      metalness: 0.05,
+    },
+    isSoftwareGl,
+  );
+
+  // Pivot sits at bottom edge so tipping rotates smoothly onto floor without clipping
+  const tiltPivot = new THREE.Group();
+  tiltPivot.position.set(0, 0.02, -0.34);
+
+  const deckTop = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.07, 0.68), steelMat);
+  deckTop.position.set(0, 0.96, 0.34);
+  deckTop.castShadow = !isSoftwareGl;
+
+  const deckMid = new THREE.Mesh(new THREE.BoxGeometry(1.32, 0.05, 0.62), padMat);
+  deckMid.position.set(0, 0.46, 0.34);
+
+  const railLeft = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.32, 0.64), steelMat);
+  railLeft.position.set(-0.66, 1.14, 0.34);
+  const railRight = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.32, 0.64), steelMat);
+  railRight.position.set(0.66, 1.14, 0.34);
+
+  const legGeo = new THREE.CylinderGeometry(0.028, 0.028, 0.94, 8);
+  for (const [lx, lz] of [
+    [-0.62, 0.06],
+    [0.62, 0.06],
+    [-0.62, 0.62],
+    [0.62, 0.62],
+  ]) {
+    const leg = new THREE.Mesh(legGeo, steelMat);
+    leg.position.set(lx, 0.48, lz);
+    leg.castShadow = !isSoftwareGl;
+    tiltPivot.add(leg);
+  }
+
+  tiltPivot.add(deckTop, deckMid, railLeft, railRight);
+  group.add(tiltPivot);
+  addContactShadow(group, textures, 1.0, 0.56);
+  return { group, tiltPivot };
+}
+
+/**
+ * 22. Composite 6-part Improvised Steel Snare / Clamp Trap (bottom-center pivot at y=0)
+ */
+export interface FloorTrapRig {
+  group: THREE.Group;
+  leftJaw: THREE.Group;
+  rightJaw: THREE.Group;
+  plate: THREE.Mesh;
+  ringMat: THREE.MeshStandardMaterial;
+}
+
+export function createFloorTrap(
+  textures: SanatoriumTextures,
+  isSoftwareGl: boolean,
+): FloorTrapRig {
+  const group = new THREE.Group();
+  const ironMat = makeStd(
+    {
+      map: textures.metalMap,
+      roughnessMap: textures.metalRoughness,
+      color: 0x42464c,
+      roughness: 0.52,
+      metalness: 0.88,
+    },
+    isSoftwareGl,
+  );
+  const ringMat = makeStd(
+    {
+      color: 0xd94238,
+      emissive: 0x6b1812,
+      emissiveIntensity: 0.65,
+      roughness: 0.32,
+      metalness: 0.4,
+    },
+    isSoftwareGl,
+  );
+
+  // Base crossbar & coiled spring cylinder
+  const baseBar = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.03, 0.14), ironMat);
+  baseBar.position.y = 0.015;
+  const springCoil = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.24, 10), ironMat);
+  springCoil.rotation.z = Math.PI / 2;
+  springCoil.position.set(0.24, 0.045, 0);
+
+  // Center pressure trigger plate
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.15, 0.032, 12), ringMat);
+  plate.position.y = 0.035;
+
+  // Dual hinged toothed jaws (open flat on ground when armed, snap upright when sprung)
+  const makeJaw = (sign: number) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(0, 0.04, sign * 0.06);
+    const arc = new THREE.Mesh(
+      new THREE.TorusGeometry(0.22, 0.018, 6, 14, Math.PI),
+      ironMat,
+    );
+    arc.rotation.x = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+    pivot.add(arc);
+    for (let t = -2; t <= 2; t++) {
+      const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.045, 4), ironMat);
+      tooth.position.set(t * 0.07, 0.022, sign * 0.18);
+      pivot.add(tooth);
+    }
+    return pivot;
+  };
+
+  const leftJaw = makeJaw(-1);
+  const rightJaw = makeJaw(1);
+
+  group.add(baseBar, springCoil, plate, leftJaw, rightJaw);
+  addContactShadow(group, textures, 0.36, 0.5);
+  return { group, leftJaw, rightJaw, plate, ringMat };
+}
+
+/**
+ * 23. Composite 4-part Caged Crimson Emergency Wall Bulkhead Light
+ */
+export interface EmergencySconceRig {
+  group: THREE.Group;
+  lensMat: THREE.MeshStandardMaterial;
+}
+
+export function createEmergencySconce(
+  textures: SanatoriumTextures,
+  isSoftwareGl: boolean,
+): EmergencySconceRig {
+  const group = new THREE.Group();
+  const castMat = makeStd(
+    {
+      map: textures.metalMap,
+      roughnessMap: textures.metalRoughness,
+      color: 0x2d3036,
+      roughness: 0.6,
+      metalness: 0.86,
+    },
+    isSoftwareGl,
+  );
+  const lensMat = makeStd(
+    {
+      color: 0xff281c,
+      emissive: 0xff1e14,
+      emissiveIntensity: 2.0,
+      roughness: 0.2,
+      metalness: 0.05,
+    },
+    isSoftwareGl,
+  );
+
+  // Wall flange backplate
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.32, 0.04), castMat);
+  plate.position.set(0, 2.38, 0.02);
+
+  // Hood shroud
+  const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.08, 12), castMat);
+  hood.rotation.x = Math.PI / 2;
+  hood.position.set(0, 2.38, 0.06);
+
+  // Crimson glass dome
+  const lens = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), lensMat);
+  lens.scale.set(1, 1.25, 0.72);
+  lens.position.set(0, 2.38, 0.08);
+
+  // Steel protective cage ribs
+  for (const angle of [-0.55, 0, 0.55]) {
+    const bar = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.008, 6, 12, Math.PI), castMat);
+    bar.rotation.y = angle;
+    bar.position.set(0, 2.38, 0.08);
+    group.add(bar);
+  }
+
+  group.add(plate, hood, lens);
+  return { group, lensMat };
+}
+
+/**
+ * 24. Volumetric Dust Beam Cone attached in front of handheld flashlight
+ */
+export function createFlashlightBeamCone(): THREE.Mesh {
+  const height = 8.5;
+  const geo = new THREE.CylinderGeometry(0.07, 2.35, height, 20, 1, true);
+  // Orient apex at origin extending along -Z
+  geo.translate(0, -height * 0.5, 0);
+  geo.rotateX(-Math.PI / 2);
+
+  const pos = geo.attributes.position;
+  const colors = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const z = pos.getZ(i);
+    const t = THREE.MathUtils.clamp(-z / height, 0, 1);
+    const fade = Math.pow(1 - t, 1.9) * THREE.MathUtils.smoothstep(t, 0.02, 0.18);
+    colors[i * 3] = 0.92 * fade;
+    colors[i * 3 + 1] = 0.88 * fade;
+    colors[i * 3 + 2] = 0.76 * fade;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const mat = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.09,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+/**
+ * 25. Resident-Evil Style 3rd-Person Playable Survivor ("Character_27_HM" FBX + Retargeted Mixamo Clips)
+ */
+export type PlayerAnimState =
+  | 'idle'
+  | 'walk'
+  | 'run'
+  | 'crouchWalk'
+  | 'pistolWalk'
+  | 'pistolWalkBack'
+  | 'hit'
+  | 'death';
+
+export interface PlayerRig {
+  group: THREE.Group;
+  modelPivot: THREE.Group;
+  loaded: boolean;
+  materials: THREE.MeshStandardMaterial[];
+  flashlightLensMat: THREE.MeshStandardMaterial;
+  mixer?: THREE.AnimationMixer;
+  actions?: Record<PlayerAnimState, THREE.AnimationAction>;
+  activeOneShot: 'hit' | 'death' | null;
+  deathPlayed: boolean;
+}
+
+export function resetPlayerAnimation(rig: PlayerRig): void {
+  rig.activeOneShot = null;
+  rig.deathPlayed = false;
+  if (!rig.mixer || !rig.actions) return;
+
+  rig.actions.hit.stop();
+  rig.actions.death.stop();
+
+  const loops: PlayerAnimState[] = [
+    'idle',
+    'walk',
+    'run',
+    'crouchWalk',
+    'pistolWalk',
+    'pistolWalkBack',
+  ];
+  for (const state of loops) {
+    rig.actions[state]
+      .reset()
+      .setEffectiveWeight(state === 'idle' ? 1 : 0)
+      .setEffectiveTimeScale(1)
+      .play();
+  }
+  rig.mixer.update(0);
+}
+
+export function createPlayerCharacter(
+  textures: SanatoriumTextures,
+  isSoftwareGl: boolean,
+  onLoaded?: () => void,
+): PlayerRig {
+  const group = new THREE.Group();
+  const modelPivot = new THREE.Group();
+  // Character_27_HM faces +Z natively; rotate PI so local -Z aligns with player camera forward
+  modelPivot.rotation.y = Math.PI;
+  group.add(modelPivot);
+
+  addContactShadow(group, textures, 0.52, 0.62);
+
+  const texLoader = new THREE.TextureLoader();
+  const playerMap = texLoader.load('/assets/player/Character_27_HM.png');
+  playerMap.colorSpace = THREE.SRGBColorSpace;
+  playerMap.anisotropy = 4;
+
+  const playerMat = makeStd(
+    {
+      map: playerMap,
+      color: 0xf0ede6,
+      roughness: 0.74,
+      metalness: 0.06,
+      side: THREE.DoubleSide,
+    },
+    isSoftwareGl,
+  );
+
+  const flashlightBodyMat = makeStd(
+    {
+      map: textures.metalMap,
+      roughnessMap: textures.metalRoughness,
+      color: 0x26292e,
+      roughness: 0.4,
+      metalness: 0.88,
+    },
+    isSoftwareGl,
+  );
+
+  const flashlightLensMat = makeStd(
+    {
+      color: 0xfff6e0,
+      emissive: 0xffe8b8,
+      emissiveIntensity: 2.2,
+      roughness: 0.15,
+      metalness: 0.05,
+    },
+    isSoftwareGl,
+  );
+
+  const rig: PlayerRig = {
+    group,
+    modelPivot,
+    loaded: false,
+    materials: [playerMat, flashlightBodyMat, flashlightLensMat],
+    flashlightLensMat,
+    activeOneShot: null,
+    deathPlayed: false,
+  };
+
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((url) =>
+    url.toLowerCase().includes('character_27_hm.png')
+      ? '/assets/player/Character_27_HM.png'
+      : url,
+  );
+
+  const fbxLoader = new FBXLoader(manager);
+
+  Promise.all([
+    new Promise<THREE.Group>((resolve, reject) =>
+      fbxLoader.load('/assets/player/Character_27_HM.fbx', resolve, undefined, reject),
+    ),
+    fetch('/assets/player/player_animations.json').then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<Partial<Record<PlayerAnimState, THREE.AnimationClipJSON>>>;
+    }),
+  ])
+    .then(([fbx, clipsJson]) => {
+      let fbxSkinned: THREE.SkinnedMesh | undefined;
+      let rightHandBone: THREE.Bone | undefined;
+
+      fbx.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.material = Array.isArray(mesh.material)
+            ? mesh.material.map(() => playerMat)
+            : playerMat;
+          mesh.castShadow = !isSoftwareGl;
+          mesh.receiveShadow = true;
+          mesh.frustumCulled = false;
+        }
+        if ((child as THREE.SkinnedMesh).isSkinnedMesh && !fbxSkinned) {
+          fbxSkinned = child as THREE.SkinnedMesh;
+        }
+        if ((child as THREE.Bone).isBone && child.name === 'mixamorigRightHand') {
+          rightHandBone = child as THREE.Bone;
+        }
+      });
+
+      // Attach compact handheld tactical flashlight into right hand (+Y aims forward in pistolWalk)
+      if (rightHandBone) {
+        const torchGroup = new THREE.Group();
+        torchGroup.position.set(0.012, 0.085, 0.014);
+
+        const handle = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.018, 0.02, 0.16, 10),
+          flashlightBodyMat,
+        );
+        const bezel = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.028, 0.02, 0.045, 10),
+          flashlightBodyMat,
+        );
+        bezel.position.y = 0.095;
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.024, 10), flashlightLensMat);
+        lens.rotation.x = -Math.PI / 2;
+        lens.position.y = 0.119;
+
+        torchGroup.add(handle, bezel, lens);
+        rightHandBone.add(torchGroup);
+      }
+
+      if (fbxSkinned) {
+        const mixer = new THREE.AnimationMixer(fbxSkinned);
+        const actions = {} as Record<PlayerAnimState, THREE.AnimationAction>;
+        const states: PlayerAnimState[] = [
+          'idle',
+          'walk',
+          'run',
+          'crouchWalk',
+          'pistolWalk',
+          'pistolWalkBack',
+          'hit',
+          'death',
+        ];
+
+        for (const state of states) {
+          const raw = clipsJson[state];
+          const clip = raw
+            ? THREE.AnimationClip.parse(raw)
+            : new THREE.AnimationClip(state, 0.5, []);
+          const action = mixer.clipAction(clip);
+
+          if (state === 'hit' || state === 'death') {
+            action.loop = THREE.LoopOnce;
+            action.clampWhenFinished = state === 'death';
+          } else {
+            action.loop = THREE.LoopRepeat;
+            action.setEffectiveWeight(state === 'idle' ? 1 : 0);
+            action.play();
+          }
+
+          actions[state] = action;
+        }
+
+        mixer.addEventListener('finished', (ev) => {
+          if (ev.action === actions.hit) {
+            ev.action.fadeOut(0.14);
+            if (rig.activeOneShot !== 'death') {
+              rig.activeOneShot = null;
+            }
+          }
+        });
+
+        rig.mixer = mixer;
+        rig.actions = actions;
+      }
+
+      fbx.position.set(0.02, 0.005, 0);
+      modelPivot.add(fbx);
+      rig.loaded = true;
+      onLoaded?.();
+    })
+    .catch((err) => {
+      console.error('Failed to load Character_27_HM or player_animations.json:', err);
+    });
+
+  return rig;
+}
+
+

@@ -25,6 +25,7 @@ export interface SanatoriumTextures {
   paperMap: THREE.CanvasTexture;
   windowGlowMap: THREE.CanvasTexture;
   dustMoteMap: THREE.CanvasTexture;
+  mistWispMap: THREE.CanvasTexture;
   courtyardGroundMap: THREE.CanvasTexture;
   courtyardGroundNormal: THREE.CanvasTexture;
   courtyardGroundRoughness: THREE.CanvasTexture;
@@ -122,7 +123,7 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
     return t;
   };
 
-  // 1. WALL TEXTURE SET (512x512): Exposed brick patches + peeling plaster + carved dado + crazed tiles
+  // 1. WALL TEXTURE SET (512x512): Riveted submerged steel bulkheads + hazard stripe dado + salt/rust corrosion
   const W = 512;
   const wallCanvas = document.createElement('canvas');
   wallCanvas.width = W;
@@ -136,103 +137,102 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   const wrImg = wrCtx.createImageData(W, W);
   const wallHeight = new Float32Array(W * W);
 
-  const dadoY = Math.floor(W * 0.56);
-  const tileCols = 8;
-  const tileRows = 6;
-  const lowerH = W - dadoY;
+  const dadoY = Math.floor(W * 0.62);
 
   for (let y = 0; y < W; y++) {
     for (let x = 0; x < W; x++) {
       const idx = (y * W + x) * 4;
-      const n1 = fbm(x * 0.028, y * 0.028, 11);
+      const n1 = fbm(x * 0.032, y * 0.032, 11);
       const n2 = fbm(x * 0.14, y * 0.14, 29);
-      const streak = fbm(x * 0.08, y * 0.01, 41);
+      const streak = fbm(x * 0.075, y * 0.011, 41);
+      const rust = fbm(x * 0.025, y * 0.025, 67);
 
-      let lum = 182;
-      let h = 0.56;
-      let rough = 210;
+      // Steel panel grid (4 columns x 2 upper tiers + lower hull plate)
+      const panelU = (x % 128) / 128;
+      const panelV = y < dadoY ? (y % 156) / 156 : ((y - dadoY) % 192) / 192;
+      const weldSeam = panelU < 0.032 || panelU > 0.968 || panelV < 0.035 || panelV > 0.965;
 
-      if (y < dadoY - 12) {
-        // Upper plaster with moisture leaks, mold blooms, and exposed underlying brick
-        lum = 162 + (n1 - 0.5) * 84 + (n2 - 0.5) * 40;
-        h = 0.58 + (n1 - 0.5) * 0.24 + (n2 - 0.5) * 0.14;
+      let lum = 136 + (n1 - 0.5) * 44 + (n2 - 0.5) * 24;
+      let h = 0.58 + (n2 - 0.5) * 0.08;
+      let rough = 128 + (n1 - 0.5) * 48;
+      let rTint = 0.92;
+      let gTint = 0.95;
+      let bTint = 0.98;
 
-        // Top crown shadow & water seepage
-        if (y < 46) {
-          const topFrac = 1 - y / 46;
-          lum -= topFrac * 82;
-          rough -= topFrac * 45;
-        }
-        if (streak > 0.61) {
-          const damp = Math.min(1, (streak - 0.61) * 2.8);
-          lum -= damp * 92;
-          rough -= damp * 78;
-        }
+      if (weldSeam) {
+        lum = 34 + (n2 - 0.5) * 14;
+        h = 0.14;
+        rough = 235;
+      }
 
-        // Exposed rough brickwork where plaster has fallen away
-        if (n1 < 0.26) {
-          const brickRow = Math.floor(y / 18);
-          const brickOff = (brickRow % 2) * 20;
-          const bx = ((x + brickOff) % 40) / 40;
-          const by = (y % 18) / 18;
-          const mortar = bx < 0.1 || bx > 0.9 || by < 0.15 || by > 0.85;
-          lum = mortar ? 44 : 84 + (n2 - 0.5) * 34;
-          h = mortar ? 0.14 : 0.34 + (n2 - 0.5) * 0.1;
-          rough = 248;
-        } else if (n1 < 0.3) {
-          // Raised curled plaster rim around exposed brick
-          lum += 26;
-          h += 0.18;
-        }
-      } else if (y <= dadoY + 14) {
-        // Carved double-bevel wooden/stone dado rail
-        const dy = (y - (dadoY - 12)) / 26;
-        const profile = Math.sin(dy * Math.PI);
-        lum = 128 + profile * 95 + (n2 - 0.5) * 22;
-        h = 0.55 + profile * 0.4;
-        rough = 145;
-      } else {
-        // Lower glazed ceramic hospital tiles with chipped corners and grime
-        const ty = (y - dadoY - 14) / (lowerH - 14);
-        const tx = x / W;
-        const uTile = (tx * tileCols) % 1;
-        const vTile = (ty * tileRows) % 1;
-        const cellX = Math.floor(tx * tileCols);
-        const cellY = Math.floor(ty * tileRows);
-        const cellId = cellX * 19 + cellY * 31;
-        const tileTint = (seededNoise(cellId, 5, 77) - 0.5) * 30;
-        const missingTile = seededNoise(cellId, 11, 99) > 0.94;
-        const seam = uTile < 0.055 || uTile > 0.945 || vTile < 0.07 || vTile > 0.93;
+      // Rivet heads along panel margins
+      const rx = x % 128;
+      const ry = y < dadoY ? y % 156 : (y - dadoY) % 192;
+      const nearMarginX = Math.abs(rx - 12) < 4 || Math.abs(rx - 116) < 4;
+      const nearMarginY = Math.abs(ry - 14) < 4 || (y < dadoY ? Math.abs(ry - 142) < 4 : Math.abs(ry - 178) < 4);
+      const rivetSpacingY = y % 32;
+      if (!weldSeam && ((nearMarginX && Math.abs(rivetSpacingY - 16) < 3.5) || (nearMarginY && Math.abs((x % 32) - 16) < 3.5))) {
+        lum += 48;
+        h = 0.88;
+        rough = 90;
+      }
 
-        if (seam || missingTile) {
-          lum = missingTile ? 52 + (n2 - 0.5) * 25 : 36 + (n2 - 0.5) * 16;
-          h = missingTile ? 0.16 : 0.1;
-          rough = 245;
+      // Industrial black/amber hazard stripe dado band
+      if (y >= dadoY - 16 && y <= dadoY + 16) {
+        const stripe = Math.floor((x + y) / 28) % 2 === 0;
+        const border = y < dadoY - 12 || y > dadoY + 12;
+        if (border) {
+          lum = 28;
+          h = 0.72;
+          rough = 180;
+        } else if (stripe) {
+          lum = 196 + (n2 - 0.5) * 24;
+          rTint = 1.05;
+          gTint = 0.82;
+          bTint = 0.28;
+          h = 0.66;
+          rough = 155;
         } else {
-          const bevel = Math.min(uTile, 1 - uTile, vTile, 1 - vTile);
-          const bevelBoost = bevel < 0.15 ? (bevel / 0.15) * 28 : 28;
-          lum = 160 + tileTint + bevelBoost + (n2 - 0.5) * 24;
-          h = 0.68 + (bevel < 0.15 ? bevel * 0.65 : 0.12);
-          rough = 78 + (n1 - 0.5) * 48; // porcelain catches dynamic flashlight glint
-          if (y > W - 54) {
-            const g = (y - (W - 54)) / 54;
-            lum -= g * 92;
-            rough += g * 100;
-          }
+          lum = 30 + (n2 - 0.5) * 14;
+          h = 0.62;
+          rough = 200;
         }
       }
 
-      // Deep plaster hairline fractures
-      const crack = Math.abs(fbm(x * 0.048, y * 0.048, 93) - 0.5);
-      if (crack < 0.014) {
-        lum -= 85;
-        h -= 0.34;
-        rough = 244;
+      // Top ceiling drip grime & lower submerged waterline corrosion
+      if (y < 48) {
+        const topFrac = 1 - y / 48;
+        lum -= topFrac * 68;
+      }
+      if (y > W - 78) {
+        const subFrac = (y - (W - 78)) / 78;
+        lum -= subFrac * 64;
+        rough -= subFrac * 65; // wet slick steel near flooded floor
+        rTint *= 0.88 + subFrac * 0.16;
+        gTint *= 0.94;
+        bTint *= 0.92;
+      }
+
+      // Vertical brine/rust streaks
+      if (streak > 0.62) {
+        const damp = Math.min(1, (streak - 0.62) * 2.8);
+        lum -= damp * 54;
+        rough -= damp * 55;
+      }
+      if (rust > 0.63 && !weldSeam) {
+        const rAmt = Math.min(1, (rust - 0.63) * 2.9);
+        lum -= rAmt * 48;
+        rough += rAmt * 78;
+        rTint = 1.06;
+        gTint = 0.72;
+        bTint = 0.54;
       }
 
       const cVal = Math.max(0, Math.min(255, Math.round(lum)));
-      const rVal = Math.max(18, Math.min(255, Math.round(rough)));
-      wImg.data[idx] = wImg.data[idx + 1] = wImg.data[idx + 2] = cVal;
+      const rVal = Math.max(16, Math.min(255, Math.round(rough)));
+      wImg.data[idx] = Math.min(255, Math.max(0, Math.round(cVal * rTint)));
+      wImg.data[idx + 1] = Math.min(255, Math.max(0, Math.round(cVal * gTint)));
+      wImg.data[idx + 2] = Math.min(255, Math.max(0, Math.round(cVal * bTint)));
       wImg.data[idx + 3] = 255;
       wrImg.data[idx] = wrImg.data[idx + 1] = wrImg.data[idx + 2] = rVal;
       wrImg.data[idx + 3] = 255;
@@ -243,7 +243,7 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   wrCtx.putImageData(wrImg, 0, 0);
   const wallNormalCanvas = heightToNormalCanvas(wallHeight, W, 3.2);
 
-  // 2. FLOOR TEXTURE SET (512x512): Checkered worn linoleum, cracked tiles, wet puddles
+  // 2. FLOOR TEXTURE SET (512x512): Perforated steel hull grating & diamond tread plate with wet bilge puddles
   const floorCanvas = document.createElement('canvas');
   floorCanvas.width = W;
   floorCanvas.height = W;
@@ -266,40 +266,55 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
       const cy = Math.floor(gy);
       const ux = gx - cx;
       const uy = gy - cy;
-      const checker = (cx + cy) % 2 === 0;
-      const n1 = fbm(x * 0.025, y * 0.025, 203);
-      const n2 = fbm(x * 0.13, y * 0.13, 211);
-      const puddle = fbm(x * 0.017, y * 0.017, 307);
+      const isGrate = (cx + cy) % 2 === 0;
+      const n1 = fbm(x * 0.028, y * 0.028, 203);
+      const n2 = fbm(x * 0.14, y * 0.14, 211);
+      const puddle = fbm(x * 0.018, y * 0.018, 307);
 
-      const seam = ux < 0.042 || ux > 0.958 || uy < 0.042 || uy > 0.958;
-      let lum = checker ? 138 : 74;
-      let h = 0.65;
-      let rough = checker ? 170 : 190;
+      const seam = ux < 0.045 || ux > 0.955 || uy < 0.045 || uy > 0.955;
+      let lum = 108;
+      let h = 0.62;
+      let rough = 148;
 
       if (seam) {
-        lum = 24;
-        h = 0.12;
-        rough = 248;
+        lum = 28;
+        h = 0.16;
+        rough = 225;
+      } else if (isGrate) {
+        // Slotted drainage deck grate over dark bilge void
+        const slotX = ((x % 16) / 16);
+        const slotY = ((y % 32) / 32);
+        const isHole = slotX > 0.26 && slotX < 0.74 && slotY > 0.14 && slotY < 0.86;
+        if (isHole) {
+          lum = 18 + (n2 - 0.5) * 10;
+          h = 0.08;
+          rough = 48; // dark water reflection below grate
+        } else {
+          lum = 134 + (n1 - 0.5) * 38;
+          h = 0.76;
+          rough = 110;
+        }
       } else {
-        lum += (n1 - 0.5) * 62 + (n2 - 0.5) * 30;
-        h += (n2 - 0.5) * 0.16;
-        if (n2 > 0.72) lum -= 28;
-        const crack = Math.abs(fbm(x * 0.055, y * 0.055, 251) - 0.5);
-        if (crack < 0.011) {
-          lum -= 52;
-          h -= 0.25;
-        }
-        if (puddle > 0.57) {
-          const wet = Math.min(1, (puddle - 0.57) * 3.9);
-          rough = Math.round(rough * (1 - wet * 0.86));
-          lum -= wet * 24;
-          h = h * (1 - wet * 0.5) + 0.68 * (wet * 0.5);
-        }
+        // Diamond tread steel plate
+        const dx = ((x % 16) / 16) - 0.5;
+        const dy = ((y % 16) / 16) - 0.5;
+        const diamond = Math.abs(dx + dy) < 0.14 || Math.abs(dx - dy) < 0.14;
+        lum = (diamond ? 148 : 96) + (n1 - 0.5) * 42 + (n2 - 0.5) * 22;
+        h = diamond ? 0.82 : 0.54;
+        rough = diamond ? 92 : 162;
+      }
+
+      if (puddle > 0.53 && !seam) {
+        const wet = Math.min(1, (puddle - 0.53) * 4.2);
+        rough = Math.round(rough * (1 - wet * 0.88));
+        lum -= wet * 24;
       }
 
       const cVal = Math.max(0, Math.min(255, Math.round(lum)));
-      const rVal = Math.max(16, Math.min(255, Math.round(rough)));
-      fImg.data[idx] = fImg.data[idx + 1] = fImg.data[idx + 2] = cVal;
+      const rVal = Math.max(12, Math.min(255, Math.round(rough)));
+      fImg.data[idx] = Math.max(0, Math.round(cVal * 0.88));
+      fImg.data[idx + 1] = Math.max(0, Math.round(cVal * 0.94));
+      fImg.data[idx + 2] = Math.max(0, Math.round(cVal * 0.98));
       fImg.data[idx + 3] = 255;
       frImg.data[idx] = frImg.data[idx + 1] = frImg.data[idx + 2] = rVal;
       frImg.data[idx + 3] = 255;
@@ -308,9 +323,9 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   }
   fCtx.putImageData(fImg, 0, 0);
   frCtx.putImageData(frImg, 0, 0);
-  const floorNormalCanvas = heightToNormalCanvas(floorHeight, W, 2.6);
+  const floorNormalCanvas = heightToNormalCanvas(floorHeight, W, 2.8);
 
-  // 3. CEILING TEXTURE SET (256x256): Weathered wooden ceiling planks with cracks & damp mold stains
+  // 3. CEILING TEXTURE SET (256x256): Ribbed submarine pressure-hull plates & conduits
   const C = 256;
   const ceilCanvas = document.createElement('canvas');
   ceilCanvas.width = C;
@@ -321,22 +336,24 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   for (let y = 0; y < C; y++) {
     for (let x = 0; x < C; x++) {
       const idx = (y * C + x) * 4;
-      const plankIdx = Math.floor((y / C) * 6);
-      const py = ((y / C) * 6) % 1;
-      const plankSeam = py < 0.065 || py > 0.935;
-      const jointOffset = ((plankIdx % 2) * 0.5 + 0.15) * C;
-      const crossSeam = Math.abs(((x + jointOffset) % C) - C * 0.5) < 2.2;
-      const grain = fbm(x * 0.035, y * 0.34 + plankIdx * 7.3, 409);
-      const damp = fbm(x * 0.022, y * 0.022, 433);
-      let lum = 88 + (grain - 0.5) * 52 + ((plankIdx % 3) - 1) * 8;
-      if (damp < 0.38) lum -= 26;
-      let h = 0.62 + (grain - 0.5) * 0.24;
-      if (plankSeam || crossSeam) {
-        lum = 18;
-        h = 0.08;
+      const rib = (y % 42) < 6;
+      const conduit = Math.abs((x % 128) - 64) < 5;
+      const n1 = fbm(x * 0.05, y * 0.05, 409);
+      const damp = fbm(x * 0.025, y * 0.025, 433);
+      let lum = 76 + (n1 - 0.5) * 44;
+      let h = 0.48 + (n1 - 0.5) * 0.12;
+      if (rib) {
+        lum = 122 + (n1 - 0.5) * 24;
+        h = 0.86;
+      } else if (conduit) {
+        lum = 98;
+        h = 0.72;
       }
+      if (damp < 0.36) lum -= 22;
       const cVal = Math.max(0, Math.min(255, Math.round(lum)));
-      cImg.data[idx] = cImg.data[idx + 1] = cImg.data[idx + 2] = cVal;
+      cImg.data[idx] = Math.round(cVal * 0.9);
+      cImg.data[idx + 1] = Math.round(cVal * 0.95);
+      cImg.data[idx + 2] = cVal;
       cImg.data[idx + 3] = 255;
       ceilHeight[y * C + x] = h;
     }
@@ -344,50 +361,54 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   cCtx.putImageData(cImg, 0, 0);
   const ceilNormalCanvas = heightToNormalCanvas(ceilHeight, C, 2.8);
 
-  // 4. EXIT DOOR TEXTURE (256x512)
+  // 4. WATERTIGHT SUBMARINE HATCH DOOR TEXTURE (256x512)
   const DW = 256;
   const DH = 512;
   const doorCanvas = document.createElement('canvas');
   doorCanvas.width = DW;
   doorCanvas.height = DH;
   const dCtx = doorCanvas.getContext('2d')!;
-  dCtx.fillStyle = '#555';
+  dCtx.fillStyle = '#48525c';
   dCtx.fillRect(0, 0, DW, DH);
-  dCtx.strokeStyle = '#1b1b1b';
-  dCtx.lineWidth = 8;
+  dCtx.strokeStyle = '#181c20';
+  dCtx.lineWidth = 10;
   dCtx.strokeRect(10, 10, DW - 20, DH - 20);
-  for (let px = 36; px < DW - 20; px += 38) {
-    dCtx.strokeStyle = '#262626';
-    dCtx.lineWidth = 2;
+  // Watertight recessed steel ribs
+  dCtx.strokeStyle = '#252b30';
+  dCtx.lineWidth = 4;
+  dCtx.strokeRect(26, 26, DW - 52, DH - 52);
+  // Porthole viewport frame near top
+  dCtx.fillStyle = '#091014';
+  dCtx.beginPath();
+  dCtx.arc(DW / 2, 128, 42, 0, Math.PI * 2);
+  dCtx.fill();
+  dCtx.strokeStyle = '#9aa8b4';
+  dCtx.lineWidth = 6;
+  dCtx.stroke();
+  for (let bx = DW / 2 - 22; bx <= DW / 2 + 22; bx += 22) {
     dCtx.beginPath();
-    dCtx.moveTo(px, 16);
-    dCtx.lineTo(px, DH - 16);
+    dCtx.moveTo(bx, 90);
+    dCtx.lineTo(bx, 166);
     dCtx.stroke();
   }
-  dCtx.fillStyle = '#202020';
-  dCtx.fillRect(16, 220, DW - 32, 34);
-  dCtx.fillStyle = '#090909';
-  dCtx.fillRect(68, 92, DW - 136, 72);
-  dCtx.strokeStyle = '#aaa';
-  dCtx.lineWidth = 5;
-  dCtx.strokeRect(68, 92, DW - 136, 72);
-  for (let bx = 92; bx < DW - 80; bx += 22) {
-    dCtx.beginPath();
-    dCtx.moveTo(bx, 92);
-    dCtx.lineTo(bx, 164);
-    dCtx.stroke();
+  // Hatch locking dog-clamps & hazard bar
+  dCtx.fillStyle = '#1b2024';
+  dCtx.fillRect(16, 224, DW - 32, 32);
+  dCtx.fillStyle = '#e5a93c';
+  for (let sx = 24; sx < DW - 32; sx += 28) {
+    dCtx.fillRect(sx, 228, 12, 24);
   }
-  dCtx.fillStyle = '#e5e5df';
-  dCtx.fillRect(54, 286, DW - 108, 44);
+  dCtx.fillStyle = '#ecebe2';
+  dCtx.fillRect(46, 286, DW - 92, 46);
   dCtx.fillStyle = '#080808';
-  dCtx.font = 'bold 28px monospace';
+  dCtx.font = 'bold 26px monospace';
   dCtx.textAlign = 'center';
   dCtx.fillText('SAÍDA', DW / 2, 318);
-  dCtx.fillStyle = '#d0d0d0';
-  for (let ry = 28; ry < DH - 24; ry += 48) {
+  dCtx.fillStyle = '#cfd6dc';
+  for (let ry = 28; ry < DH - 24; ry += 44) {
     dCtx.beginPath();
-    dCtx.arc(24, ry, 4, 0, Math.PI * 2);
-    dCtx.arc(DW - 24, ry, 4, 0, Math.PI * 2);
+    dCtx.arc(22, ry, 4.5, 0, Math.PI * 2);
+    dCtx.arc(DW - 22, ry, 4.5, 0, Math.PI * 2);
     dCtx.fill();
   }
 
@@ -444,7 +465,7 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   mCtx.putImageData(mImg, 0, 0);
   mrCtx.putImageData(mrImg, 0, 0);
 
-  // 6. WORN FABRIC / MATTRESS
+  // 6. WORN TARPAULIN / DIVING CANVAS
   const fabricCanvas = document.createElement('canvas');
   fabricCanvas.width = C;
   fabricCanvas.height = C;
@@ -489,7 +510,7 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   flCtx.putImageData(flImg, 0, 0);
   const fleshNormalCanvas = heightToNormalCanvas(fleshHeight, C, 2.8);
 
-  // 8. PRESSURE GAUGE DIAL
+  // 8. DEPTH / PRESSURE GAUGE DIAL
   const G = 128;
   const gaugeCanvas = document.createElement('canvas');
   gaugeCanvas.width = G;
@@ -509,7 +530,7 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
     gCtx.lineTo(G / 2 + Math.cos(a) * 48, G / 2 + Math.sin(a) * 48);
     gCtx.stroke();
   }
-  gCtx.strokeStyle = '#000';
+  gCtx.strokeStyle = '#c42926';
   gCtx.lineWidth = 3;
   gCtx.beginPath();
   gCtx.moveTo(G / 2, G / 2);
@@ -531,12 +552,12 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   shadowDisc.colorSpace = THREE.SRGBColorSpace;
   shadowDisc.needsUpdate = true;
 
-  // 10. ASYLUM WARD NOTICE POSTER (256x320)
+  // 10. SUBMERGED RIG SAFETY NOTICE POSTER (256x320)
   const p1Canvas = document.createElement('canvas');
   p1Canvas.width = 256;
   p1Canvas.height = 320;
   const p1 = p1Canvas.getContext('2d')!;
-  p1.fillStyle = '#d8d6cc';
+  p1.fillStyle = '#d8d8ce';
   p1.fillRect(0, 0, 256, 320);
   p1.strokeStyle = '#181818';
   p1.lineWidth = 6;
@@ -544,23 +565,23 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   p1.fillStyle = '#151515';
   p1.fillRect(24, 24, 208, 42);
   p1.fillStyle = '#e8e8e0';
-  p1.font = 'bold 22px monospace';
+  p1.font = 'bold 20px monospace';
   p1.textAlign = 'center';
-  p1.fillText('ALA B · ISOLAMENTO', 128, 52);
-  p1.fillStyle = '#151515';
+  p1.fillText('SETOR ABISSAL -420M', 128, 52);
+  p1.fillStyle = '#b42020';
   p1.font = 'bold 15px monospace';
-  p1.fillText('PROTOCOLO NOTURNO', 128, 92);
+  p1.fillText('ALERTA DE INUNDAÇÃO', 128, 92);
+  p1.fillStyle = '#151515';
   p1.fillRect(36, 102, 184, 3);
   p1.font = '13px monospace';
   p1.textAlign = 'left';
   const lines = [
-    '1. APAGUE AS LUZES',
-    '2. NÃO ABRA CELAS',
-    '3. IGNORE OS PASSOS',
-    '4. SAÍDA AO SUL ->',
+    '1. SILÊNCIO NA ÁGUA',
+    '2. DESLIGUE O RÁDIO',
+    '3. SONAR ATRAI CAÇA',
+    '4. ESCOTILHA SUL ->',
   ];
   lines.forEach((ln, i) => p1.fillText(ln, 28, 136 + i * 28));
-  // Torn corner & grime stain
   p1.fillStyle = 'rgba(20,20,20,0.28)';
   p1.beginPath();
   p1.arc(195, 250, 48, 0, Math.PI * 2);
@@ -572,48 +593,49 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   p1.lineTo(256, 320);
   p1.fill();
 
-  // 11. PSYCHIATRIC ANATOMY / EYE DIAGRAM POSTER (256x320)
+  // 11. ABYSSAL SONAR & BATHYMETRIC DIAGRAM POSTER (256x320)
   const p2Canvas = document.createElement('canvas');
   p2Canvas.width = 256;
   p2Canvas.height = 320;
   const p2 = p2Canvas.getContext('2d')!;
-  p2.fillStyle = '#ceccc2';
+  p2.fillStyle = '#cad2d6';
   p2.fillRect(0, 0, 256, 320);
-  p2.strokeStyle = '#141414';
+  p2.strokeStyle = '#141a20';
   p2.lineWidth = 4;
   p2.strokeRect(14, 14, 228, 292);
-  // Cranial schematic & eye diagram
+  // Sonar concentric rings + sweep crosshairs
+  for (const r of [24, 48, 72]) {
+    p2.beginPath();
+    p2.arc(128, 132, r, 0, Math.PI * 2);
+    p2.stroke();
+  }
   p2.beginPath();
-  p2.arc(128, 132, 64, 0, Math.PI * 2);
+  p2.moveTo(52, 132);
+  p2.lineTo(204, 132);
+  p2.moveTo(128, 56);
+  p2.lineTo(128, 212);
+  p2.moveTo(128, 132);
+  p2.lineTo(182, 82);
   p2.stroke();
+  p2.fillStyle = '#c42926';
   p2.beginPath();
-  p2.moveTo(64, 132);
-  p2.lineTo(192, 132);
-  p2.moveTo(128, 68);
-  p2.lineTo(128, 225);
-  p2.stroke();
-  p2.fillStyle = '#141414';
-  p2.beginPath();
-  p2.ellipse(128, 132, 34, 18, 0, 0, Math.PI * 2);
-  p2.stroke();
-  p2.beginPath();
-  p2.arc(128, 132, 10, 0, Math.PI * 2);
+  p2.arc(164, 98, 8, 0, Math.PI * 2);
   p2.fill();
+  p2.fillStyle = '#141414';
   p2.font = 'bold 14px monospace';
   p2.textAlign = 'center';
-  p2.fillText('BLACKWOOD · FIG. IV', 128, 268);
-  p2.fillText('OBSERVAÇÃO CLÍNICA', 128, 288);
+  p2.fillText('BLACKWOOD · SONAR IV', 128, 264);
+  p2.fillText('MAPA DE PRESSÃO', 128, 286);
 
-  // 12. CHARCOAL MADNESS GRAFFITI DECAL (transparent PNG-style alpha CanvasTexture)
+  // 12. CHARCOAL & RUST MADNESS GRAFFITI DECAL (transparent PNG-style alpha CanvasTexture)
   const grCanvas = document.createElement('canvas');
   grCanvas.width = 256;
   grCanvas.height = 256;
   const gr = grCanvas.getContext('2d')!;
   gr.clearRect(0, 0, 256, 256);
-  gr.strokeStyle = 'rgba(12,12,12,0.92)';
-  gr.fillStyle = 'rgba(12,12,12,0.92)';
+  gr.strokeStyle = 'rgba(145,16,16,0.9)';
+  gr.fillStyle = 'rgba(145,16,16,0.94)';
   gr.lineWidth = 4;
-  // Tally marks + frantic scratches + warning
   for (let i = 0; i < 5; i++) {
     gr.beginPath();
     gr.moveTo(36 + i * 11, 56);
@@ -624,7 +646,7 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   gr.moveTo(26, 90);
   gr.lineTo(94, 62);
   gr.stroke();
-  // Spiral eye
+  gr.strokeStyle = 'rgba(14,14,14,0.92)';
   gr.beginPath();
   for (let a = 0; a < 22; a += 0.25) {
     const r = a * 1.4;
@@ -634,10 +656,12 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
     else gr.lineTo(x, y);
   }
   gr.stroke();
+  gr.fillStyle = 'rgba(155,14,14,0.96)';
   gr.font = 'bold 20px monospace';
-  gr.fillText('ELE OUVE', 34, 168);
-  gr.font = 'bold 16px monospace';
-  gr.fillText('APAGUE A LUZ', 44, 198);
+  gr.fillText('A ÁGUA SOBE', 28, 168);
+  gr.fillStyle = 'rgba(14,14,14,0.94)';
+  gr.font = 'bold 15px monospace';
+  gr.fillText('DESLIGUE O RÁDIO', 30, 198);
 
   // 13. FLOOR SPLATTER / OIL DRAG DECAL (alpha)
   const stCanvas = document.createElement('canvas');
@@ -663,45 +687,57 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
     st.fill();
   }
 
-  // 14. SCATTERED MEDICAL RECORD PAPER TEXTURE (128x160)
+  // 14. SCATTERED RIG LOG SHEET PAPER TEXTURE (128x160)
   const ppCanvas = document.createElement('canvas');
   ppCanvas.width = 128;
   ppCanvas.height = 160;
   const pp = ppCanvas.getContext('2d')!;
-  pp.fillStyle = '#e5e3da';
+  pp.fillStyle = '#dde2e4';
   pp.fillRect(0, 0, 128, 160);
-  pp.strokeStyle = '#333';
+  pp.strokeStyle = '#253038';
   pp.lineWidth = 2;
   pp.strokeRect(8, 8, 112, 144);
-  pp.fillStyle = '#222';
+  pp.fillStyle = '#1b2228';
   for (let y = 26; y < 138; y += 14) {
     const w = 48 + seededNoise(y, 2, 45) * 44;
     pp.fillRect(16, y, w, 4);
   }
 
-  // 15. FROSTED BARRED WINDOW MOONLIGHT BACKING (128x192)
+  // 15. DEEP OCEAN ABYSSAL PORTHOLE BACKING (128x192)
   const wnCanvas = document.createElement('canvas');
   wnCanvas.width = 128;
   wnCanvas.height = 192;
   const wn = wnCanvas.getContext('2d')!;
   const wg = wn.createLinearGradient(0, 0, 0, 192);
-  wg.addColorStop(0, '#eef2f6');
-  wg.addColorStop(0.6, '#929ca8');
-  wg.addColorStop(1, '#34383e');
+  wg.addColorStop(0, '#9ad8df');
+  wg.addColorStop(0.5, '#2b5868');
+  wg.addColorStop(1, '#091820');
   wn.fillStyle = wg;
   wn.fillRect(0, 0, 128, 192);
-  // Subtle dead tree branches silhouette outside
-  wn.strokeStyle = 'rgba(12,14,16,0.7)';
+  // Deep sea kelp tendrils & rising bubbles outside porthole
+  wn.strokeStyle = 'rgba(6,14,18,0.78)';
   wn.lineWidth = 4;
   wn.beginPath();
-  wn.moveTo(16, 192);
-  wn.lineTo(54, 108);
-  wn.lineTo(36, 48);
-  wn.moveTo(54, 108);
-  wn.lineTo(96, 62);
+  wn.moveTo(26, 192);
+  wn.quadraticCurveTo(44, 130, 32, 74);
+  wn.quadraticCurveTo(22, 40, 40, 18);
+  wn.moveTo(86, 192);
+  wn.quadraticCurveTo(68, 140, 88, 92);
+  wn.quadraticCurveTo(98, 56, 82, 26);
   wn.stroke();
+  wn.fillStyle = 'rgba(210,248,255,0.6)';
+  for (const [bx, by, br] of [
+    [56, 148, 3],
+    [62, 114, 4.5],
+    [52, 78, 2.5],
+    [72, 52, 3.5],
+  ]) {
+    wn.beginPath();
+    wn.arc(bx, by, br, 0, Math.PI * 2);
+    wn.fill();
+  }
 
-  // 16. SOFT DUST MOTE SPRITE (32x32)
+  // 16. SOFT DUST / PLANKTON MOTE SPRITE (32x32)
   const dmCanvas = document.createElement('canvas');
   dmCanvas.width = 32;
   dmCanvas.height = 32;
@@ -713,7 +749,30 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   dm.fillStyle = dmg;
   dm.fillRect(0, 0, 32, 32);
 
-  // 17. COURTYARD WET COBBLESTONE & GRAVEL GROUND (512x512)
+  // 16b. CREEPING BILGE VAPOR WISP SPRITE (64x64)
+  const mwCanvas = document.createElement('canvas');
+  mwCanvas.width = 64;
+  mwCanvas.height = 64;
+  const mwCtx = mwCanvas.getContext('2d')!;
+  const mwImg = mwCtx.createImageData(64, 64);
+  for (let y = 0; y < 64; y++) {
+    for (let x = 0; x < 64; x++) {
+      const dx = (x - 31.5) / 31.5;
+      const dy = (y - 31.5) / 31.5;
+      const dist = Math.hypot(dx, dy);
+      const radial = Math.max(0, 1 - dist);
+      const wisp = fbm(x * 0.08, y * 0.08, 751);
+      const alpha = Math.max(0, Math.min(255, Math.round(radial * radial * (0.45 + wisp * 0.75) * 140)));
+      const idx = (y * 64 + x) * 4;
+      mwImg.data[idx] = 178;
+      mwImg.data[idx + 1] = 202;
+      mwImg.data[idx + 2] = 216;
+      mwImg.data[idx + 3] = alpha;
+    }
+  }
+  mwCtx.putImageData(mwImg, 0, 0);
+
+  // 17. WET OFFSHORE DECKING GROUND (512x512)
   const gCanvas = document.createElement('canvas');
   gCanvas.width = W;
   gCanvas.height = W;
@@ -733,7 +792,6 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
       const n2 = fbm(x * 0.16, y * 0.16, 823);
       const puddle = fbm(x * 0.014, y * 0.014, 839);
 
-      // Irregular weathered stone pavers
       const row = Math.floor(y / 32);
       const col = Math.floor((x + (row % 2) * 24) / 48);
       const ux = ((x + (row % 2) * 24) % 48) / 48;
@@ -765,7 +823,7 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   grRoughCtx.putImageData(grRoughImg, 0, 0);
   const gNormalCanvas = heightToNormalCanvas(gHeight, W, 3.0);
 
-  // 18. EXTERIOR ASYLUM STONE MASONRY (256x256)
+  // 18. EXTERIOR RIG STEEL PLATING (256x256)
   const sbCanvas = document.createElement('canvas');
   sbCanvas.width = C;
   sbCanvas.height = C;
@@ -775,14 +833,12 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   for (let y = 0; y < C; y++) {
     for (let x = 0; x < C; x++) {
       const idx = (y * C + x) * 4;
-      const row = Math.floor(y / 24);
-      const off = (row % 2) * 26;
-      const ux = ((x + off) % 52) / 52;
-      const uy = (y % 24) / 24;
-      const mortar = ux < 0.07 || ux > 0.93 || uy < 0.12 || uy > 0.88;
+      const ux = (x % 64) / 64;
+      const uy = (y % 48) / 48;
+      const mortar = ux < 0.06 || ux > 0.94 || uy < 0.08 || uy > 0.92;
       const n1 = fbm(x * 0.05, y * 0.05, 907);
       const moss = fbm(x * 0.02, y * 0.02, 919);
-      let lum = mortar ? 34 : 118 + (n1 - 0.5) * 62;
+      let lum = mortar ? 30 : 114 + (n1 - 0.5) * 52;
       if (moss > 0.62) lum -= (moss - 0.62) * 140;
       const cVal = Math.max(0, Math.min(255, Math.round(lum)));
       sbImg.data[idx] = sbImg.data[idx + 1] = sbImg.data[idx + 2] = cVal;
@@ -793,7 +849,7 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   sbCtx.putImageData(sbImg, 0, 0);
   const sbNormalCanvas = heightToNormalCanvas(sbHeight, C, 3.0);
 
-  // 19. DEAD TREE BARK TEXTURE (128x128)
+  // 19. CORRODED PILING TEXTURE (128x128)
   const bkCanvas = document.createElement('canvas');
   bkCanvas.width = G;
   bkCanvas.height = G;
@@ -810,12 +866,12 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   }
   bkCtx.putImageData(bkImg, 0, 0);
 
-  // 20. SANATORIUM PORTICO SIGNAGE (512x128)
+  // 20. SUBMERGED RIG BULKHEAD SIGNAGE (512x128)
   const sgCanvas = document.createElement('canvas');
   sgCanvas.width = 512;
   sgCanvas.height = 128;
   const sg = sgCanvas.getContext('2d')!;
-  sg.fillStyle = '#18191c';
+  sg.fillStyle = '#14191e';
   sg.fillRect(0, 0, 512, 128);
   sg.strokeStyle = '#d4d4cc';
   sg.lineWidth = 6;
@@ -823,10 +879,10 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
   sg.fillStyle = '#ecece4';
   sg.font = 'bold 34px monospace';
   sg.textAlign = 'center';
-  sg.fillText('SANATÓRIO BLACKWOOD', 256, 62);
+  sg.fillText('PLATAFORMA BLACKWOOD', 256, 62);
   sg.font = 'bold 17px monospace';
-  sg.fillStyle = '#b4b4ac';
-  sg.fillText('ALA PSIQUIÁTRICA · FUND. 1924', 256, 98);
+  sg.fillStyle = '#8cc4d0';
+  sg.fillText('SETOR ABISSAL · -420 METROS', 256, 98);
 
   return {
     wallMap: reg(finalizeTexture(wallCanvas, aniso, true, 1, 1)),
@@ -853,6 +909,7 @@ export function createSanatoriumTextures(renderer: THREE.WebGLRenderer): Sanator
     paperMap: reg(finalizeTexture(ppCanvas, aniso, true, 1, 1)),
     windowGlowMap: reg(finalizeTexture(wnCanvas, aniso, true, 1, 1)),
     dustMoteMap: reg(finalizeTexture(dmCanvas, aniso, true, 1, 1)),
+    mistWispMap: reg(finalizeTexture(mwCanvas, aniso, true, 1, 1)),
     courtyardGroundMap: reg(finalizeTexture(gCanvas, aniso, true, 14, 14)),
     courtyardGroundNormal: reg(finalizeTexture(gNormalCanvas, aniso, false, 14, 14)),
     courtyardGroundRoughness: reg(finalizeTexture(gRoughCanvas, aniso, false, 14, 14)),

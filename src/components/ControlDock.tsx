@@ -1,6 +1,6 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, Volume2, VolumeX, Flashlight, Smartphone, X, Video } from 'lucide-react';
-import { DitherPalette } from '../game/DitherPostProcess';
+import { ChevronDown, ChevronUp, Volume2, VolumeX, Flashlight, Smartphone, X, Radar, Eye, Radio } from 'lucide-react';
+import { ColorDepthMode, DitherMode, DitherPalette } from '../game/DitherPostProcess';
 import { EngineSettings } from '../game/SanatoriumEngine';
 
 interface ControlDockProps {
@@ -12,6 +12,8 @@ interface ControlDockProps {
   onToggleFlashlight: () => void;
   cameraOn: boolean;
   onToggleCamera: () => void;
+  radioOn: boolean;
+  onToggleRadio: () => void;
   showTouchOverride: boolean;
   onToggleTouchOverride: () => void;
   mobileLayout?: boolean;
@@ -26,22 +28,110 @@ export const ControlDock: React.FC<ControlDockProps> = React.memo(({
   onToggleFlashlight,
   cameraOn,
   onToggleCamera,
+  radioOn,
+  onToggleRadio,
   showTouchOverride,
   onToggleTouchOverride,
   mobileLayout = false,
 }) => {
+  const ditherModes: { id: DitherMode; label: string }[] = [
+    { id: 'contrast', label: 'Contraste' },
+    { id: 'blue', label: 'Blue Noise' },
+    { id: 'bayer8', label: 'Bayer 8×8' },
+    { id: 'bayer4', label: 'Bayer 4×4' },
+    { id: 'hatch', label: 'Hachura' },
+    { id: 'halftone', label: 'Meio-Tom' },
+  ];
+
+  const colorDepths: { id: ColorDepthMode; label: string }[] = [
+    { id: '1bit', label: '1-Bit' },
+    { id: '3contrast', label: '3 Destaque' },
+    { id: '5ramp', label: '5 Suave' },
+    { id: '5contrast', label: '5 Contraste' },
+    { id: '5mixed', label: '5 Mistas' },
+  ];
+
   const palettes: { id: DitherPalette; label: string }[] = [
     { id: 'auto', label: 'Reativa' },
     { id: 'bone', label: 'Osso' },
     { id: 'night', label: 'Noturna' },
     { id: 'amber', label: 'Âmbar' },
     { id: 'crimson', label: 'Sangue' },
+    { id: 'cobalt', label: 'Cobalto' },
+    { id: 'gameboy', label: 'Fósforo' },
+    { id: 'violet', label: 'Espectral' },
+    { id: 'rust', label: 'Ferrugem' },
   ];
+
+  const pixelScales = [1, 2, 3, 4];
 
   const controlsContent = (
     <div className="flex flex-col gap-2">
-      {/* Row: 1-Bit Contraste 1x Palette, Gear Toggles, Light & Audio */}
+      {/* Row 1: Style & Pixel Scale */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-white/65 whitespace-nowrap">Estilo</span>
+          <div className="flex flex-wrap border border-white/25 bg-black">
+            {ditherModes.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => onUpdateSettings({ ditherMode: m.id })}
+                className={`min-h-[32px] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                  settings.ditherMode === m.id
+                    ? 'bg-[#f4f4f0] text-[#050506]'
+                    : 'text-white/75 hover:text-white'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-white/65 whitespace-nowrap">Escala</span>
+          <div className="flex border border-white/25 bg-black">
+            {pixelScales.map((scale) => (
+              <button
+                key={scale}
+                type="button"
+                onClick={() => onUpdateSettings({ pixelScale: scale })}
+                className={`min-h-[32px] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                  settings.pixelScale === scale
+                    ? 'bg-[#f4f4f0] text-[#050506]'
+                    : 'text-white/75 hover:text-white'
+                }`}
+              >
+                {scale}×
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Color Depth & Palette */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-white/65 whitespace-nowrap">Cores</span>
+          <div className="flex flex-wrap border border-white/25 bg-black">
+            {colorDepths.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onUpdateSettings({ colorDepth: c.id })}
+                className={`min-h-[32px] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                  settings.colorDepth === c.id
+                    ? 'bg-[#f4f4f0] text-[#050506]'
+                    : 'text-white/75 hover:text-white'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] text-white/65 whitespace-nowrap">Paleta</span>
           <div className="flex flex-wrap border border-white/25 bg-black">
@@ -50,7 +140,7 @@ export const ControlDock: React.FC<ControlDockProps> = React.memo(({
                 key={p.id}
                 type="button"
                 onClick={() => onUpdateSettings({ palette: p.id })}
-                className={`min-h-[34px] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                className={`min-h-[32px] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
                   settings.palette === p.id
                     ? 'bg-[#f4f4f0] text-[#050506]'
                     : 'text-white/75 hover:text-white'
@@ -61,25 +151,41 @@ export const ControlDock: React.FC<ControlDockProps> = React.memo(({
             ))}
           </div>
         </div>
+      </div>
 
+      {/* Row 3: Gear Toggles, Light & Audio */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={onToggleCamera}
-            className={`flex min-h-[34px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+            className={`flex min-h-[32px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
               cameraOn
-                ? 'border-[#80ff72] bg-[#80ff72] text-[#030e06]'
+                ? 'border-[#5ef2ff] bg-[#5ef2ff] text-[#041418]'
                 : 'border-white/30 bg-black text-white/80'
             }`}
           >
-            <Video className="h-3.5 w-3.5" />
-            <span>{cameraOn ? 'Câmera IR On' : 'Câmera IR Off'}</span>
+            <Radar className="h-3.5 w-3.5" />
+            <span>{cameraOn ? 'Lente Sonar On' : 'Lente Sonar Off'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onToggleRadio}
+            className={`flex min-h-[32px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+              radioOn
+                ? 'border-[#f3b644] bg-[#f3b644] text-[#050506]'
+                : 'border-white/30 bg-black text-white/80'
+            }`}
+          >
+            <Radio className="h-3.5 w-3.5" />
+            <span>{radioOn ? 'Rádio AM On' : 'Rádio AM Off'}</span>
           </button>
 
           <button
             type="button"
             onClick={onToggleFlashlight}
-            className={`flex min-h-[34px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+            className={`flex min-h-[32px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
               flashlightOn
                 ? 'border-white bg-[#f4f4f0] text-[#050506]'
                 : 'border-white/30 bg-black text-white/80'
@@ -97,13 +203,28 @@ export const ControlDock: React.FC<ControlDockProps> = React.memo(({
             value={settings.lightBoost}
             aria-label="Intensidade da iluminação"
             onChange={(e) => onUpdateSettings({ lightBoost: parseFloat(e.target.value) })}
-            className="h-6 w-20 accent-[#f4f4f0]"
+            className="h-6 w-24 accent-[#f4f4f0]"
           />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onUpdateSettings({ thirdPerson: !settings.thirdPerson })}
+            className={`flex min-h-[32px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+              settings.thirdPerson
+                ? 'border-white bg-[#f4f4f0] text-[#050506]'
+                : 'border-white/30 bg-black text-white/75'
+            }`}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            <span>{settings.thirdPerson ? '3ª Pessoa' : '1ª Pessoa'}</span>
+          </button>
 
           <button
             type="button"
             onClick={() => onUpdateSettings({ spatialAudio: !settings.spatialAudio })}
-            className={`flex min-h-[34px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+            className={`flex min-h-[32px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
               settings.spatialAudio
                 ? 'border-white bg-[#f4f4f0] text-[#050506]'
                 : 'border-white/30 bg-black text-white/75'
@@ -116,7 +237,7 @@ export const ControlDock: React.FC<ControlDockProps> = React.memo(({
           <button
             type="button"
             onClick={onToggleTouchOverride}
-            className={`flex min-h-[34px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
+            className={`flex min-h-[32px] items-center gap-1.5 border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors ${
               showTouchOverride
                 ? 'border-white bg-[#f4f4f0] text-[#050506]'
                 : 'border-white/30 bg-black text-white/75'
@@ -156,7 +277,7 @@ export const ControlDock: React.FC<ControlDockProps> = React.memo(({
 
   return (
     <div
-      className={`pointer-events-none fixed bottom-3 left-1/2 w-[min(860px,95vw)] -translate-x-1/2 transition-transform duration-200 ease-out ${
+      className={`pointer-events-none fixed bottom-3 left-1/2 w-[min(920px,95vw)] -translate-x-1/2 transition-transform duration-200 ease-out ${
         collapsed ? 'z-30' : 'z-50'
       }`}
       style={{

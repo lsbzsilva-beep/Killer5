@@ -1,7 +1,16 @@
 import * as THREE from 'three';
 
 export type DitherMode = 'blue' | 'bayer8' | 'bayer4' | 'hatch' | 'halftone' | 'contrast';
-export type DitherPalette = 'auto' | 'bone' | 'night' | 'amber' | 'crimson';
+export type DitherPalette =
+  | 'auto'
+  | 'bone'
+  | 'night'
+  | 'amber'
+  | 'crimson'
+  | 'cobalt'
+  | 'gameboy'
+  | 'violet'
+  | 'rust';
 export type ColorDepthMode = '1bit' | '3contrast' | '5ramp' | '5contrast' | '5mixed';
 
 export interface PaletteStops {
@@ -53,6 +62,39 @@ export const PALETTE_COLORS: Record<Exclude<DitherPalette, 'auto'>, PaletteStops
     accent: 0xf5efe6,
     accentOnHotLum: true,
   },
+  cobalt: {
+    dark: 0x040812,
+    midDark: 0x132b4d,
+    mid: 0x2f5d8f,
+    midLight: 0x73a8d4,
+    light: 0xd8eeff,
+    accent: 0xff3d4a,
+  },
+  gameboy: {
+    dark: 0x0f1f0e,
+    midDark: 0x234721,
+    mid: 0x457536,
+    midLight: 0x7ca651,
+    light: 0xc2d987,
+    accent: 0xf2f7b5,
+    accentOnHotLum: true,
+  },
+  violet: {
+    dark: 0x0b0514,
+    midDark: 0x2e1747,
+    mid: 0x633687,
+    midLight: 0xa477c7,
+    light: 0xeadcf8,
+    accent: 0xff4081,
+  },
+  rust: {
+    dark: 0x120906,
+    midDark: 0x422116,
+    mid: 0x7d452c,
+    midLight: 0xb8764b,
+    light: 0xe6bf98,
+    accent: 0xff451f,
+  },
 };
 
 export const MIXED_5_COLORS = {
@@ -69,6 +111,34 @@ export const MIXED_5_COLORS = {
     setColorSrgbHex(new THREE.Color(), 0x32b84e),
     setColorSrgbHex(new THREE.Color(), 0x8cff75),
     setColorSrgbHex(new THREE.Color(), 0xf2ffde),
+  ],
+  cobalt: [
+    setColorSrgbHex(new THREE.Color(), 0x040812),
+    setColorSrgbHex(new THREE.Color(), 0x1c3d6e),
+    setColorSrgbHex(new THREE.Color(), 0x5c3c82),
+    setColorSrgbHex(new THREE.Color(), 0x57a6c4),
+    setColorSrgbHex(new THREE.Color(), 0xe8f6ff),
+  ],
+  gameboy: [
+    setColorSrgbHex(new THREE.Color(), 0x0f1f0e),
+    setColorSrgbHex(new THREE.Color(), 0x285225),
+    setColorSrgbHex(new THREE.Color(), 0x53823d),
+    setColorSrgbHex(new THREE.Color(), 0x8cb356),
+    setColorSrgbHex(new THREE.Color(), 0xd4e899),
+  ],
+  violet: [
+    setColorSrgbHex(new THREE.Color(), 0x0b0514),
+    setColorSrgbHex(new THREE.Color(), 0x381c59),
+    setColorSrgbHex(new THREE.Color(), 0x992e64),
+    setColorSrgbHex(new THREE.Color(), 0xb875cf),
+    setColorSrgbHex(new THREE.Color(), 0xf2e8fc),
+  ],
+  rust: [
+    setColorSrgbHex(new THREE.Color(), 0x120906),
+    setColorSrgbHex(new THREE.Color(), 0x4f2316),
+    setColorSrgbHex(new THREE.Color(), 0x9c331c),
+    setColorSrgbHex(new THREE.Color(), 0xc47e45),
+    setColorSrgbHex(new THREE.Color(), 0xf0d2ae),
   ],
 };
 
@@ -253,6 +323,11 @@ export const DitherShader = {
     uCamcorder: { value: 0.0 },
     uDamagePulse: { value: 0.0 },
     uMuzzleBoost: { value: 0.0 },
+    uSonarWave: { value: 0.0 },
+    uSonarPulse: { value: 0.0 },
+    uSonarProximity: { value: 0.0 },
+    uFlashInvert: { value: 0.0 },
+    uThreat: { value: 0.0 },
     uTime: { value: 0.0 },
   },
   vertexShader: /* glsl */ `
@@ -284,6 +359,11 @@ export const DitherShader = {
     uniform float uCamcorder;
     uniform float uDamagePulse;
     uniform float uMuzzleBoost;
+    uniform float uSonarWave;
+    uniform float uSonarPulse;
+    uniform float uSonarProximity;
+    uniform float uFlashInvert;
+    uniform float uThreat;
     uniform float uTime;
     varying vec2 vUv;
 
@@ -330,20 +410,20 @@ export const DitherShader = {
       return bayer4x4(p) + bayer2x2(q) / 64.0;
     }
 
-    // Woodcut / horror manga multi-tier crosshatching pattern
+    // Woodcut / horror manga multi-tier crosshatching pattern with strong ink outlines
     float crosshatchBit(vec2 cell, float lum, float edge) {
-      if (edge > 0.16 && lum > 0.06) return 1.0;
+      if (edge > 0.14 && lum > 0.05) return 1.0;
 
-      float h1 = step(0.5, fract((cell.x + cell.y) * 0.22));
-      float h2 = step(0.5, fract((cell.x - cell.y) * 0.22));
-      float h3 = step(0.45, fract((cell.x + cell.y * 0.35) * 0.30));
-      float h4 = step(0.55, fract(cell.y * 0.28));
+      float h1 = step(0.48, fract((cell.x + cell.y) * 0.24));
+      float h2 = step(0.48, fract((cell.x - cell.y) * 0.24));
+      float h3 = step(0.44, fract((cell.x + cell.y * 0.35) * 0.32));
+      float h4 = step(0.54, fract(cell.y * 0.28));
 
-      if (lum > 0.86) return 1.0;
-      if (lum > 0.62) return h1;
-      if (lum > 0.40) return min(h1, h2);
-      if (lum > 0.20) return min(min(h1, h2), h3);
-      if (lum > 0.05) return min(min(h1, h2), min(h3, h4));
+      if (lum > 0.84) return 1.0;
+      if (lum > 0.58) return h1;
+      if (lum > 0.36) return min(h1, h2);
+      if (lum > 0.18) return min(min(h1, h2), h3);
+      if (lum > 0.045) return min(min(h1, h2), min(h3, h4));
       return 0.0;
     }
 
@@ -393,71 +473,208 @@ export const DitherShader = {
       return pow(max(lin, vec3(0.0)), vec3(1.0 / 2.2));
     }
 
-    void main() {
-      vec2 gridRes = max(vec2(64.0), floor(uResolution / max(1.0, uPixelScale)));
-      vec2 cell = floor(vUv * gridRes);
-      vec2 snappedUv = (cell + 0.5) / gridRes;
-      vec2 texel = 1.0 / gridRes;
-
-      vec2 centered = vUv - 0.5;
-      float radial = length(centered);
-      if (uDamagePulse > 0.01) {
-        float jitter = sin(snappedUv.y * 90.0 + uTime * 35.0) * 0.014 * uDamagePulse * radial;
-        snappedUv.x += jitter;
+      vec3 getRampStop(int idx) {
+        if (idx == 0) return uDarkColor;
+        if (idx == 1) return uMidDarkColor;
+        if (idx == 2) return uMidColor;
+        if (idx == 3) return uMidLightColor;
+        return uLightColor;
       }
 
-      if (uCamcorder > 0.5) {
-        float scanBand = step(0.993, fract(sin(floor(uTime * 12.0) * 78.233 + snappedUv.y * 19.0) * 43758.5));
-        snappedUv.x += scanBand * 0.008 * sin(uTime * 60.0);
+      void main() {
+        vec2 gridRes = max(vec2(64.0), floor(uResolution / max(1.0, uPixelScale)));
+        vec2 cell = floor(vUv * gridRes);
+        vec2 snappedUv = (cell + 0.5) / gridRes;
+        vec2 texel = 1.0 / gridRes;
+
+        vec2 centered = vUv - 0.5;
+        float radial = length(centered);
+        if (uDamagePulse > 0.01) {
+          float jitter = sin(snappedUv.y * 90.0 + uTime * 35.0) * 0.014 * uDamagePulse * radial;
+          snappedUv.x += jitter;
+        }
+        if (uThreat > 0.35) {
+          float panicGlitch = step(0.986 - (uThreat - 0.35) * 0.025, fract(sin(floor(uTime * 18.0) * 43.17 + snappedUv.y * 23.0) * 19453.2));
+          snappedUv.x += panicGlitch * 0.005 * uThreat * sin(uTime * 55.0);
+        }
+
+        if (uCamcorder > 0.5) {
+          float scanBand = step(0.993, fract(sin(floor(uTime * 12.0) * 78.233 + snappedUv.y * 19.0) * 43758.5));
+          snappedUv.x += scanBand * 0.008 * sin(uTime * 60.0);
+        }
+
+        // Sonar Lens + Radio/Sensor threat distortion (intensifies with killer proximity & pulse beats)
+        float sonarDistort = uCamcorder * clamp(uSonarProximity * 0.72 + uSonarPulse * (0.42 + uSonarProximity * 0.78), 0.0, 1.5);
+        float sonarTear = 0.0;
+        if (uCamcorder > 0.5 && sonarDistort > 0.01) {
+          float bandFreq = 26.0 + uSonarProximity * 34.0;
+          float bandTime = floor(uTime * (14.0 + uSonarProximity * 22.0));
+          float rowHash = fract(sin(floor(snappedUv.y * bandFreq) * 91.7 + bandTime * 17.3) * 43758.5);
+          sonarTear = step(0.93 - sonarDistort * 0.24, rowHash);
+          snappedUv.x += sonarTear * sin(uTime * 68.0 + snappedUv.y * 110.0) * (0.008 + sonarDistort * 0.036);
+          if (uSonarPulse > 0.02) {
+            vec2 radialDir = radial > 0.0001 ? centered / radial : vec2(0.0);
+            snappedUv += radialDir * sin(radial * 40.0 - uTime * 24.0) * 0.0065 * uSonarPulse * (0.3 + uSonarProximity);
+          }
+        }
+
+        vec3 col = sampleSrgb(snappedUv);
+        float rawLum = dot(col, vec3(0.299, 0.587, 0.114));
+        float lum = rawLum;
+
+        // Crisp chiaroscuro & graphic-novel ink edge detection
+        float lumN = dot(sampleSrgb(snappedUv + vec2(0.0, texel.y)), vec3(0.299, 0.587, 0.114));
+        float lumS = dot(sampleSrgb(snappedUv - vec2(0.0, texel.y)), vec3(0.299, 0.587, 0.114));
+        float lumE = dot(sampleSrgb(snappedUv + vec2(texel.x, 0.0)), vec3(0.299, 0.587, 0.114));
+        float lumW = dot(sampleSrgb(snappedUv - vec2(texel.x, 0.0)), vec3(0.299, 0.587, 0.114));
+        float laplacian = lum * 4.0 - (lumN + lumS + lumE + lumW);
+        float edgeMag = abs(laplacian);
+        lum = clamp(lum + laplacian * 0.68, 0.0, 1.0);
+
+        // Soft highlight roll-off preserves plate/metal/skin etching near the flashlight beam
+        lum = lum / (0.85 + lum * 0.50);
+
+        // Oppressive abyssal darkness curve: unlit hallways collapse into true black
+        float darkFloor = 0.068 - uCamcorder * 0.036;
+        float lit = max(0.0, lum - darkFloor) * (1.32 + uCamcorder * 0.28) + uMuzzleBoost * 0.34;
+        lum = pow(clamp(lit, 0.0, 1.0), 0.96);
+
+        // Sonar pulse expanding ripple highlights silhouettes & walls as it sweeps outward
+        float sonarRing = 0.0;
+        if (uSonarWave > 0.01) {
+          float waveR = (1.0 - uSonarWave) * 0.88;
+          sonarRing = smoothstep(0.07, 0.0, abs(radial - waveR)) * uSonarWave;
+          lum = clamp(lum + sonarRing * (0.28 + edgeMag * 2.2), 0.0, 1.0);
+        }
+
+        // Threat pulse wave triggered whenever Radio or Sonar Sensor detects killer nearby
+        float threatRing = 0.0;
+        if (uCamcorder > 0.5 && uSonarPulse > 0.01) {
+          float pulseR = (1.0 - uSonarPulse) * 0.92;
+          threatRing = smoothstep(0.09, 0.0, abs(radial - pulseR)) * uSonarPulse * (0.42 + uSonarProximity * 0.58);
+          lum = clamp(lum + threatRing * (0.36 + edgeMag * 2.0), 0.0, 1.0);
+        }
+
+        // Subtle 16mm horror grain + sonar interference noise
+        float filmGrain = (hash12(cell + floor(uTime * 16.0)) - 0.5) * (0.02 + uThreat * 0.042);
+        lum = clamp(lum + filmGrain, 0.0, 1.0);
+
+        if (uCamcorder > 0.5) {
+          float scan = mod(cell.y, 2.0) > 0.5 ? -0.048 : 0.032;
+          float irNoise = (hash12(cell + floor(uTime * 24.0)) - 0.5) * (0.055 + sonarDistort * 0.14);
+          lum = clamp(lum + scan + irNoise, 0.0, 1.0);
+        }
+
+        // Claustrophobic tunnel-vision vignette that tightens further under threat
+        float vigOuter = 0.88 - uCamcorder * 0.06 - uThreat * 0.16;
+        float vigInner = 0.20 - uThreat * 0.06;
+        float vig = smoothstep(vigOuter, vigInner, radial);
+        lum *= mix(0.20 - uThreat * 0.12, 1.0, vig);
+
+        if (uDamagePulse > 0.01) {
+          float edgeMask = smoothstep(0.22, 0.68, radial);
+          lum -= edgeMask * uDamagePulse * 0.55;
+        }
+        lum = clamp(lum, 0.0, 1.0);
+
+        // Strobe Flash blinding peak -> photographic negative burn
+        if (uFlashInvert > 0.01) {
+          float inv = 1.0 - lum;
+          lum = mix(lum, inv, clamp(uFlashInvert * 1.15, 0.0, 1.0));
+          if (uFlashInvert > 0.72) {
+            lum = clamp(lum + (uFlashInvert - 0.72) * 3.2, 0.0, 1.0);
+          }
+        }
+
+        // Detect warm crimson/signal surfaces (blood stains, medkit cross, red switches/LEDs)
+        float warmSignal = step(0.08, col.r - max(col.g, col.b) * 1.18) * step(0.05, lum);
+        float hotSignal = uAccentMode * smoothstep(0.76, 0.95, lum);
+
+        vec3 outCol;
+        if (uColorMode == 0) {
+          // 1-Bit (2 colors)
+          float bit = ditherPatternBit(cell, lum, edgeMag, false);
+          outCol = mix(uDarkColor, uLightColor, bit);
+        } else if (uColorMode == 4) {
+          // 3 Cores c/ Destaque
+          float bit = ditherPatternBit(cell, lum, edgeMag, true);
+          vec3 baseCol = mix(uDarkColor, uLightColor, bit);
+          float accentBit = ditherPatternBit(cell, clamp(max(warmSignal * 0.95, hotSignal), 0.0, 1.0), edgeMag * 0.3, false);
+          outCol = mix(baseCol, uAccentColor, accentBit * max(warmSignal, hotSignal));
+        } else if (uColorMode == 3) {
+          // 5 Cores Mistas
+          float scaled = lum * 4.0;
+          int idx = int(clamp(floor(scaled), 0.0, 3.0));
+          float frac = lum >= 1.0 ? 1.0 : fract(scaled);
+          float bit = ditherPatternBit(cell, frac, edgeMag * 0.55, false);
+          vec3 cA = getMixedPaletteColor(idx);
+          vec3 cB = getMixedPaletteColor(idx + 1);
+          outCol = mix(cA, cB, bit);
+          // Bold horror-manga ink contour on sharp silhouette transitions
+          if (uMode == 4 && edgeMag > 0.22 && rawLum > 0.08) {
+            outCol = mix(outCol, uMixed0, 0.72);
+          }
+        } else if (uColorMode == 2) {
+          // 5 Cores Contraste (+ destaque de acento)
+          float contrastLum = clamp((lum - 0.5) * 1.24 + 0.5, 0.0, 1.0);
+          float scaled = contrastLum * 4.0;
+          int idx = int(clamp(floor(scaled), 0.0, 3.0));
+          float frac = contrastLum >= 1.0 ? 1.0 : fract(scaled);
+          float bit = ditherPatternBit(cell, frac, edgeMag * 0.5, true);
+          outCol = mix(getRampStop(idx), getRampStop(idx + 1), bit);
+          float accentStrength = max(warmSignal * 0.85, hotSignal * 0.75);
+          outCol = mix(outCol, uAccentColor, step(0.5, accentStrength));
+        } else {
+          // uColorMode == 1: 5 Cores Suaves (5-stop dithered ramp)
+          float scaled = lum * 4.0;
+          int idx = int(clamp(floor(scaled), 0.0, 3.0));
+          float frac = lum >= 1.0 ? 1.0 : fract(scaled);
+          float bit = ditherPatternBit(cell, frac, edgeMag * 0.4, false);
+          outCol = mix(getRampStop(idx), getRampStop(idx + 1), bit);
+        }
+
+        if (sonarRing > 0.15) {
+          outCol = mix(outCol, uLightColor, sonarRing * 0.45);
+        }
+
+        // Escalating 1-Bit Sonar & Radio Threat Pulse Distortion
+        if (uCamcorder > 0.5 && (uSonarProximity > 0.01 || uSonarPulse > 0.01)) {
+          float crushScale = 1.0 + floor(sonarDistort * 2.4);
+          vec2 coarseCell = floor(cell / crushScale);
+          float pulseFlicker = (hash12(coarseCell + floor(uTime * 32.0)) - 0.5) * (0.14 + uSonarProximity * 0.28);
+          float crushedLum = clamp((lum - 0.46) * (1.18 + sonarDistort * 0.45) + 0.5 + pulseFlicker, 0.0, 1.0);
+          float bit1 = step(bayer4x4(coarseCell) * 0.92 + 0.04, crushedLum);
+          vec3 dither1BitCol = mix(uDarkColor, uLightColor, bit1);
+
+          float edgeZone = smoothstep(0.22 - uSonarProximity * 0.14, 0.72, radial);
+          float pulseBurst = uSonarPulse * (0.38 + uSonarProximity * 0.62);
+          float bitMix = clamp(
+            uSonarProximity * 0.65 * edgeZone +
+            pulseBurst * 0.68 +
+            sonarTear * (0.55 + uSonarProximity * 0.45) +
+            threatRing * 0.85,
+            0.0,
+            1.0
+          );
+          outCol = mix(outCol, dither1BitCol, bitMix);
+
+          if (threatRing > 0.12) {
+            float ringBit = step(bayer4x4(cell), clamp(threatRing * 1.15, 0.0, 1.0));
+            outCol = mix(outCol, uAccentColor, ringBit * 0.72);
+          }
+          if (sonarTear > 0.5 && uSonarPulse > 0.25) {
+            outCol = mix(outCol, uAccentColor, 0.35 * uSonarPulse);
+          }
+        }
+
+        if (uDamagePulse > 0.28 && radial > 0.44) {
+          float dmgZone = smoothstep(0.44, 0.78, radial) * (uDamagePulse - 0.28) * 1.35;
+          float pulseMask = step(0.5, fract(cell.y * 0.5)) * step(0.4, dmgZone);
+          outCol = mix(outCol, mix(uLightColor, uDarkColor, step(0.5, dot(outCol, vec3(0.333)))), pulseMask);
+        }
+
+        gl_FragColor = vec4(outCol, 1.0);
       }
-
-      vec3 col = sampleSrgb(snappedUv);
-      float rawLum = dot(col, vec3(0.299, 0.587, 0.114));
-      float lum = rawLum;
-
-      // Crisp chiaroscuro ink-edge & crease clarity tailored for 1x Contraste 1-bit
-      float lumN = dot(sampleSrgb(snappedUv + vec2(0.0, texel.y)), vec3(0.299, 0.587, 0.114));
-      float lumS = dot(sampleSrgb(snappedUv - vec2(0.0, texel.y)), vec3(0.299, 0.587, 0.114));
-      float lumE = dot(sampleSrgb(snappedUv + vec2(texel.x, 0.0)), vec3(0.299, 0.587, 0.114));
-      float lumW = dot(sampleSrgb(snappedUv - vec2(texel.x, 0.0)), vec3(0.299, 0.587, 0.114));
-      float laplacian = lum * 4.0 - (lumN + lumS + lumE + lumW);
-      float edgeMag = abs(laplacian);
-      lum = clamp(lum + laplacian * 0.62, 0.0, 1.0);
-
-      // Soft highlight roll-off preserves brick/wood/skin etching near the flashlight beam
-      lum = lum / (0.86 + lum * 0.52);
-
-      // Emergence-from-darkness curve: unlit voids stay 100% solid dark, lit zones materialize cleanly
-      float darkFloor = 0.052 - uCamcorder * 0.026;
-      float lit = max(0.0, lum - darkFloor) * (1.28 + uCamcorder * 0.28) + uMuzzleBoost * 0.28;
-      lum = pow(clamp(lit, 0.0, 1.0), 0.92);
-
-      if (uCamcorder > 0.5) {
-        float scan = mod(cell.y, 2.0) > 0.5 ? -0.045 : 0.035;
-        float irNoise = (hash12(cell + floor(uTime * 24.0)) - 0.5) * 0.055;
-        lum = clamp(lum + scan + irNoise, 0.0, 1.0);
-      }
-
-      float vig = smoothstep(0.98 - uCamcorder * 0.08, 0.26, radial);
-      lum *= mix(0.58, 1.0, vig);
-
-      if (uDamagePulse > 0.01) {
-        float edgeMask = smoothstep(0.22, 0.68, radial);
-        lum -= edgeMask * uDamagePulse * 0.55;
-      }
-
-      // Pure 1-Bit Contraste (strictly 2 colors: uDarkColor <-> uLightColor)
-      float bit = ditherPatternBit(cell, clamp(lum, 0.0, 1.0), edgeMag, false);
-
-      if (uDamagePulse > 0.28 && radial > 0.44) {
-        float dmgZone = smoothstep(0.44, 0.78, radial) * (uDamagePulse - 0.28) * 1.35;
-        float pulseMask = step(0.5, fract(cell.y * 0.5)) * step(0.4, dmgZone);
-        bit = mix(bit, 1.0 - bit, pulseMask);
-      }
-
-      vec3 outCol = mix(uDarkColor, uLightColor, bit);
-      gl_FragColor = vec4(outCol, 1.0);
-    }
   `,
 };
 
@@ -469,7 +686,7 @@ export function applySoftwareBayerDither(material: THREE.MeshStandardMaterial): 
       #include <dithering_fragment>
       {
         float swLum = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
-        swLum = pow(clamp(swLum * 1.35, 0.0, 1.0), 0.85);
+        swLum = pow(clamp(max(0.0, swLum - 0.04) * 1.42, 0.0, 1.0), 0.94);
         vec2 sc = floor(gl_FragCoord.xy * 0.5);
         int bx = int(mod(sc.x, 4.0));
         int by = int(mod(sc.y, 4.0));

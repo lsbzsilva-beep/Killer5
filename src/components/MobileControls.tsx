@@ -1,28 +1,65 @@
 import React, { useRef, useState } from 'react';
-import { Flashlight, RotateCw, Crosshair, Video, Hand } from 'lucide-react';
+import { Flashlight, Radar, Hand, Eye, Lock, Unlock, Wind, Zap, Radio } from 'lucide-react';
 
 interface MobileControlsProps {
   flashlightOn: boolean;
   cameraOn: boolean;
+  crouching: boolean;
+  isHiding: boolean;
+  holdingBreath: boolean;
+  bottles: number;
+  traps: number;
+  flashCharges: number;
+  maxFlashCharges: number;
+  flashCooldownFrac: number;
+  radioOn: boolean;
+  radioSignal: number;
+  canPeekDoor: boolean;
+  canLockDoor: boolean;
+  doorLocked: boolean;
   interactPrompt: string | null;
   onMove: (x: number, y: number, sprint: boolean) => void;
-  onShoot: () => void;
   onToggleFlashlight: () => void;
   onToggleCamera: () => void;
-  onReload: () => void;
+  onToggleCrouch: () => void;
+  onTriggerFlash: () => void;
+  onToggleRadio: () => void;
   onInteract: () => void;
+  onPeekChange: (active: boolean) => void;
+  onLockDoor: () => void;
+  onThrowBottle: () => void;
+  onPlaceTrap: () => void;
+  onHoldBreathChange: (active: boolean) => void;
 }
 
 export const MobileControls: React.FC<MobileControlsProps> = React.memo(({
   flashlightOn,
   cameraOn,
+  crouching,
+  isHiding,
+  holdingBreath,
+  bottles,
+  traps,
+  flashCharges,
+  flashCooldownFrac,
+  radioOn,
+  radioSignal,
+  canPeekDoor,
+  canLockDoor,
+  doorLocked,
   interactPrompt,
   onMove,
-  onShoot,
   onToggleFlashlight,
   onToggleCamera,
-  onReload,
+  onToggleCrouch,
+  onTriggerFlash,
+  onToggleRadio,
   onInteract,
+  onPeekChange,
+  onLockDoor,
+  onThrowBottle,
+  onPlaceTrap,
+  onHoldBreathChange,
 }) => {
   const padRef = useRef<HTMLDivElement | null>(null);
   const activePointerId = useRef<number | null>(null);
@@ -47,7 +84,7 @@ export const MobileControls: React.FC<MobileControlsProps> = React.memo(({
 
     setKnob({ x: dx, y: dy });
     const nx = dx / maxR;
-    const ny = -dy / maxR; // screen up is forward (+y)
+    const ny = -dy / maxR;
     const autoSprint = sprintLock || dist / maxR > 0.85;
     onMove(nx, ny, autoSprint);
   };
@@ -60,24 +97,41 @@ export const MobileControls: React.FC<MobileControlsProps> = React.memo(({
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
-      {/* Left Virtual Analog Joystick */}
+      {/* Left Virtual Analog Joystick + Sprint/Crouch Toggles */}
       <div className="pointer-events-auto absolute bottom-5 left-4 flex flex-col items-start gap-2">
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            const next = !sprintLock;
-            setSprintLock(next);
-            onMove(knob.x / 46, -knob.y / 46, next);
-          }}
-          className={`min-h-[36px] border px-3 py-1 text-xs font-semibold tracking-wider transition-colors ${
-            sprintLock
-              ? 'border-white bg-[#f4f4f0] text-[#050506]'
-              : 'border-white/55 bg-[#060608]/85 text-white/90'
-          }`}
-        >
-          {sprintLock ? 'CORRIDA: ON' : 'CORRER'}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              const next = !sprintLock;
+              setSprintLock(next);
+              onMove(knob.x / 46, -knob.y / 46, next);
+            }}
+            className={`min-h-[36px] border px-2.5 py-1 text-[11px] font-semibold tracking-wider transition-colors ${
+              sprintLock
+                ? 'border-white bg-[#f4f4f0] text-[#050506]'
+                : 'border-white/55 bg-[#060608]/85 text-white/90'
+            }`}
+          >
+            {sprintLock ? 'CORRIDA: ON' : 'CORRER'}
+          </button>
+
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onToggleCrouch();
+            }}
+            className={`min-h-[36px] border px-2.5 py-1 text-[11px] font-semibold tracking-wider transition-colors ${
+              crouching
+                ? 'border-[#f3b644] bg-[#f3b644] text-[#050506]'
+                : 'border-white/55 bg-[#060608]/85 text-white/90'
+            }`}
+          >
+            {crouching ? 'AGACHADO' : 'AGACHAR'}
+          </button>
+        </div>
 
         <div
           ref={padRef}
@@ -111,8 +165,73 @@ export const MobileControls: React.FC<MobileControlsProps> = React.memo(({
         </div>
       </div>
 
-      {/* Right Thumb Combat & Light Cluster */}
-      <div className="pointer-events-auto absolute bottom-5 right-4 flex flex-col items-end gap-2.5">
+      {/* Right Thumb Gear, Stealth & Interaction Cluster */}
+      <div className="pointer-events-auto absolute bottom-5 right-4 flex flex-col items-end gap-2">
+        {isHiding && (
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              onHoldBreathChange(true);
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              onHoldBreathChange(false);
+            }}
+            onPointerCancel={() => onHoldBreathChange(false)}
+            className={`flex min-h-[44px] items-center gap-2 border px-3.5 py-2 text-xs font-bold tracking-wider transition-colors ${
+              holdingBreath
+                ? 'border-[#80ff72] bg-[#80ff72] text-[#050506]'
+                : 'border-white/75 bg-[#060608]/90 text-white'
+            }`}
+          >
+            <Wind className="h-4 w-4" />
+            <span>SEGURE: PRENDER AR</span>
+          </button>
+        )}
+
+        {!isHiding && (canPeekDoor || canLockDoor) && (
+          <div className="flex items-center gap-2">
+            {canPeekDoor && (
+              <button
+                type="button"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  onPeekChange(true);
+                }}
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  onPeekChange(false);
+                }}
+                onPointerCancel={() => onPeekChange(false)}
+                className="flex min-h-[40px] items-center gap-1.5 border border-white/70 bg-[#060608]/90 px-3 py-1.5 text-[11px] font-bold text-white active:bg-white active:text-black"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                <span>ESPIAR</span>
+              </button>
+            )}
+            {canLockDoor && (
+              <button
+                type="button"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  onLockDoor();
+                }}
+                className={`flex min-h-[40px] items-center gap-1.5 border px-3 py-1.5 text-[11px] font-bold transition-colors ${
+                  doorLocked
+                    ? 'border-[#f3b644] bg-[#f3b644] text-[#050506]'
+                    : 'border-white/70 bg-[#060608]/90 text-white'
+                }`}
+              >
+                {doorLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                <span>{doorLocked ? 'DESTRANCAR' : 'TRANCAR'}</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {interactPrompt && (
           <button
             type="button"
@@ -121,29 +240,104 @@ export const MobileControls: React.FC<MobileControlsProps> = React.memo(({
               onInteract();
             }}
             aria-label={interactPrompt}
-            className="flex min-h-[44px] items-center gap-2 border border-white bg-[#f4f4f0] px-3.5 py-2 text-xs font-bold tracking-wider text-[#050506] active:scale-95"
+            className="flex min-h-[44px] items-center gap-2 border-2 border-white bg-[#f4f4f0] px-4 py-2 text-xs font-bold tracking-wider text-[#050506] active:scale-95"
           >
             <Hand className="h-4 w-4" />
             <span>{interactPrompt}</span>
           </button>
         )}
 
-        <div className="flex items-center gap-2.5">
+        {!isHiding && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onThrowBottle();
+              }}
+              className={`min-h-[38px] border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                bottles > 0
+                  ? 'border-white/70 bg-[#060608]/90 text-white active:bg-white active:text-black'
+                  : 'border-white/25 bg-[#060608]/60 text-white/40'
+              }`}
+            >
+              FRASCO ({bottles})
+            </button>
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onPlaceTrap();
+              }}
+              className={`min-h-[38px] border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                traps > 0
+                  ? 'border-white/70 bg-[#060608]/90 text-white active:bg-white active:text-black'
+                  : 'border-white/25 bg-[#060608]/60 text-white/40'
+              }`}
+            >
+              ARMADILHA ({traps})
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onToggleRadio();
+            }}
+            aria-label="Alternar rádio tático"
+            className={`flex h-13 w-13 flex-col items-center justify-center gap-0.5 border transition-colors ${
+              radioOn
+                ? radioSignal > 40
+                  ? 'border-[#ff4a40] bg-[#ff4a40]/90 text-white'
+                  : 'border-[#f3b644] bg-[#f3b644] text-[#050506]'
+                : 'border-white/50 bg-[#060608]/85 text-white/60'
+            }`}
+          >
+            <Radio className="h-4 w-4" />
+            <span className="text-[9px] font-bold leading-none">
+              {radioOn ? `${radioSignal}%` : 'MUDO'}
+            </span>
+          </button>
+
+          {!isHiding && (
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onTriggerFlash();
+              }}
+              aria-label="Disparar flash estroboscópico"
+              className={`flex h-13 w-13 flex-col items-center justify-center gap-0.5 border transition-colors ${
+                flashCharges > 0 && flashCooldownFrac <= 0
+                  ? 'border-[#ffe066] bg-[#ffe066] text-[#050506] active:scale-95'
+                  : 'border-white/30 bg-[#060608]/75 text-white/40'
+              }`}
+            >
+              <Zap className="h-4 w-4" />
+              <span className="text-[9px] font-bold leading-none">
+                {flashCooldownFrac > 0 ? '...' : `FLASH ${flashCharges}`}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onPointerDown={(e) => {
               e.stopPropagation();
               onToggleCamera();
             }}
-            aria-label="Alternar câmera noturna"
-            className={`flex h-12 w-12 flex-col items-center justify-center gap-0.5 border transition-colors ${
+            aria-label="Alternar lente sonar"
+            className={`flex h-13 w-13 flex-col items-center justify-center gap-0.5 border transition-colors ${
               cameraOn
-                ? 'border-[#80ff72] bg-[#80ff72] text-[#030e06]'
+                ? 'border-[#5ef2ff] bg-[#5ef2ff] text-[#031317]'
                 : 'border-white/60 bg-[#060608]/85 text-white'
             }`}
           >
-            <Video className="h-4 w-4" />
-            <span className="text-[9px] font-bold leading-none">IR</span>
+            <Radar className="h-5 w-5" />
+            <span className="text-[9px] font-bold leading-none">SONAR</span>
           </button>
 
           <button
@@ -153,40 +347,14 @@ export const MobileControls: React.FC<MobileControlsProps> = React.memo(({
               onToggleFlashlight();
             }}
             aria-label="Alternar lanterna"
-            className={`flex h-12 w-12 flex-col items-center justify-center gap-0.5 border transition-colors ${
+            className={`flex h-13 w-13 flex-col items-center justify-center gap-0.5 border transition-colors ${
               flashlightOn
                 ? 'border-white bg-[#f4f4f0] text-[#050506]'
                 : 'border-white/60 bg-[#060608]/85 text-white'
             }`}
           >
-            <Flashlight className="h-4 w-4" />
+            <Flashlight className="h-5 w-5" />
             <span className="text-[9px] font-bold leading-none">LUZ</span>
-          </button>
-        </div>
-
-        <div className="flex items-end gap-3">
-          <button
-            type="button"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              onReload();
-            }}
-            aria-label="Recarregar arma"
-            className="flex h-12 w-12 items-center justify-center border border-white/60 bg-[#060608]/85 text-white active:bg-white active:text-black"
-          >
-            <RotateCw className="h-5 w-5" />
-          </button>
-
-          <button
-            type="button"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              onShoot();
-            }}
-            aria-label="Atirar"
-            className="flex h-[70px] w-[70px] items-center justify-center rounded-full border-2 border-white bg-[#f4f4f0] text-[#050506] active:scale-95"
-          >
-            <Crosshair className="h-7 w-7 stroke-[2.2]" />
           </button>
         </div>
       </div>
